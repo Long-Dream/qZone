@@ -30,7 +30,7 @@ var HTTPheaders = {
 
 
 // 调用子命令
-exec('python ./qqlib/test.py ' + config.userQQ + ' ' + config.password + '', function(err,stdout,stderr){
+exec('python ./QQlib/test.py ' + config.userQQ + ' ' + config.password + '', function(err,stdout,stderr){
     if(err) throw err; // 登录失败
 
     out2cookies(stdout);
