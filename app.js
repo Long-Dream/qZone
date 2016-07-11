@@ -12,7 +12,10 @@ var QQNumbers  = [];     // 收集到的QQ号码
 // Config
 var config     = {
     userQQ      : 3095623630,
-    password    : 'testtest'
+    password    : 'testtest',
+
+    boardNum    : 20,    // 留言板每次抓取的数量
+    shuoNum    : 40    // 说说每次抓取的数量
 }
 
 
@@ -64,7 +67,7 @@ exec('python ./QQLib/test.py ' + config.userQQ + ' ' + config.password + '', fun
 
     out2jsoncookies(stdout);
     // getMainPage(616772663, config.userQQ, json2cookies(jsonCookie));
-    getMsgBoard(616772663, config.userQQ);
+    getMsgBoard(616772663, config.userQQ, config.shuoNum);
 })
 
 
@@ -199,17 +202,23 @@ function getUserInfoAll(targetQQ, currentQQ){
  * 
  * @param  {QQ} targetQQ  目标人物的QQ号
  * @param  {QQ} currentQQ 当前爬虫正在使用的QQ号
+ * @param  {int} boardNum 每次抓取的留言板条数
+ * @param  {int} startNum 开始的留言板条数  默认为 0
  */
-function getMsgBoard(targetQQ, currentQQ){
+function getMsgBoard(targetQQ, currentQQ, boardNum, startNum){
+
+    // 将开始数默认为 0
+    startNum = startNum || 0;
+
     request.get('https://h5.qzone.qq.com/proxy/domain/m.qzone.qq.com/cgi-bin/new/get_msgb')
         .set(msgBoardHeader)
         .set({Cookie : json2cookies(jsonCookie)})
         .query({
             uin         : currentQQ,
             hostUin     : targetQQ,
-            start       : 0,
+            start       : startNum,
             format      : 'jsonp',
-            num         : 10,
+            num         : 20,
             inCharset   : 'utf-8',
             outCharset  : 'utf-8',
             g_tk        : getGTK(jsonCookie.p_skey)
@@ -222,23 +231,48 @@ function getMsgBoard(targetQQ, currentQQ){
             })
             data.on('end', function(chunk){
 
-                var boardJson = JSON.parse(text.replace(/^_Callback\(/, '').replace(/\);/, ''));
+                var boardJson = JSON.parse(text.replace(/^_Callback\(/, '').replace(/\);$/, ''));
 
                 // 权限检查 以及 登录检查
-                if(boardJson.code === -4009){return console.log(targetQQ + " : 没有权限"); }
-                if(boardJson.code === -4001){return console.log(targetQQ + " : 没有登录"); }
+                switch(boardJson.code){
+                    case -4009  : return console.log('获取留言板 ' +　targetQQ + " : 没有权限");
+                    case -4001  : return console.log('获取留言板 ' +　targetQQ + " : 没有登录");
+                    case  1003  : return console.log('获取留言板 ' +　targetQQ + " : 操作过于频繁");
+                    case -5007  : return console.log('获取留言板 ' +　targetQQ + " : 系统繁忙1");
+                    case -30002 : return console.log('获取留言板 ' +　targetQQ + " : 系统繁忙2");
+                    case -4013  : return console.log('获取留言板 ' +　targetQQ + " : 空间未开通");
+                    case -4014  : return console.log('获取留言板 ' +　targetQQ + " : 空间被封闭");
+                }
 
-                console.log(targetQQ + " : 获取成功, 留言板的信息共有 " + boardJson.data.total + " 条");
+                // 返回消息代码 二次确认
+                if(boardJson.code !==  0) debugger;
+                // if(boardJson.code !==  0) throw new Error("获取留言板, 收到未知代码")
+
+                // 就算返回代码正确, list 仍然可能没有被定义
+                if(!boardJson.data.commentList) return;
+
+                console.log("留言板消息" +　targetQQ + " : 获取成功, 从第 " + startNum + " 条开始, 留言板的信息共有 " + boardJson.data.total + " 条");
+
+                // 如果 startNum 为 0, 就说明是首次抓取该 QQ 号的留言板
+                // 那就对留言板的数量进行分析 并对每一页都发出抓取信号
+                if(startNum === 0 && boardJson.data.total > boardNum){
+                    for(var i = boardNum; i < boardJson.data.total; i += boardNum){
+                        getMsgBoard(targetQQ, currentQQ, boardNum, i)
+                    }
+                }
+
                 boardJson.data.commentList.forEach(function(item, index){
 
                     // 检查 item.uin 是否存在 以及 是否为数
-                    if(!item.uin || typeof item.uin !== 'number') return;
+                    if(typeof item.uin !== 'number') return;
 
                     // 检查是否已经爬过
+                    // 如果是小鲜肉, 就将其深入
+                    // TODO : 后期程序成型后, 将小鲜肉立刻深入改为排队站好逐个深入
                     if(QQNumbers.indexOf(item.uin) === -1){
                         QQNumbers.push(item.uin);
                         console.log("当前爬取 QQ : " + targetQQ + ", 已将 QQ " + item.uin + "加入队列")
-                        getMsgBoard(item.uin, currentQQ);
+                        getMsgBoard(item.uin, currentQQ, boardNum);
                     }
                 })
             })
@@ -252,7 +286,11 @@ function getMsgBoard(targetQQ, currentQQ){
  * @param  {QQ} targetQQ  目标人物的QQ号
  * @param  {QQ} currentQQ 当前爬虫正在使用的QQ号
  */
-function getShuoShuoMsgList(targetQQ, currentQQ){
+function getShuoShuoMsgList(targetQQ, currentQQ, shuoNum, startNum){
+
+    // 将开始数默认为 0
+    startNum = startNum || 0;
+
     request.get("https://h5.qzone.qq.com/proxy/domain/taotao.qq.com/cgi-bin/emotion_cgi_msglist_v6")
         .set(msgBoardHeader)
         .set({Cookie : json2cookies(jsonCookie)})
@@ -263,8 +301,8 @@ function getShuoShuoMsgList(targetQQ, currentQQ){
             hostUin     : targetQQ,
             notice      : 0,
             sort        : 0,
-            pos         : 0,
-            num         : 20,
+            pos         : startNum,
+            num         : shuoNum,
             cgi_host    : 'http://taotao.qq.com/cgi-bin/emotion_cgi_msglist_v6',
             code_version    : 1,
             format      : 'jsonp',
@@ -274,18 +312,55 @@ function getShuoShuoMsgList(targetQQ, currentQQ){
         .end(function(err, data){
             if(err) throw err;      // 获取说说消息失败
 
-            console.log(data.text)
+            // console.log(data.text)
 
-            // var msgListJson = JSON.parse(data.text.replace(/^_Callback\(/, '').replace(/\);/, ''));
+            var msgListJson = JSON.parse(data.text.replace(/^_Callback\(/, '').replace(/\);$/, ''));
+
+            // 权限检查 以及 登录检查
+            switch(msgListJson.code){
+                case -10031 : return console.log('获取说说 ' +　targetQQ + " : 没有权限");
+                case -3000  : return console.log('获取说说 ' +　targetQQ + " : 没有登录");
+                case -10000 : return console.log('获取说说 ' +　targetQQ + " : 操作过于频繁");
+            }
+
+            // 返回消息代码 二次确认
+            // if(msgListJson.code !== 0) throw new Error("获取说说消息, 收到未知代码")
+            if(msgListJson.code !== 0) debugger;
+
+            // 就算返回代码正确, list 仍然可能没有被定义
+            if(!msgListJson.msglist) return;
+
+            console.log("说说消息" +　targetQQ + " : 获取成功, 从第 " + startNum + " 条开始, 留言板的信息共有 " + msgListJson.total + " 条");
+
+            // 如果 startNum 为 0, 就说明是首次抓取该 QQ 号的说说
+            // 那就对说说的数量进行分析 并对每一页都发出抓取信号
+            if(startNum === 0 && msgListJson.total > shuoNum){
+                for(var i = shuoNum; i < msgListJson.total; i += shuoNum){
+                    getShuoShuoMsgList(targetQQ, currentQQ, shuoNum, i)
+                }
+            }
             
-            // msgListJson.msglist.forEach(function(item, index){
-            //     console.log("说说: " + item.content)
-            //     if(item.rt_con){
-            //         console.log("   By 转发说说 : " + item.rt_con.content)
-            //     }
-            //     console.log('\n')
-            // })
+            msgListJson.msglist.forEach(function(item, index){
 
+                // 以下几行用于展示说说, 并没有什么实际用处
+                // console.log("说说: " + (item.content === '' ? "*该用户在转发时保持了沉默*" : item.content))
+                // if(item.rt_con){ console.log("   By 转发说说 : " + item.rt_con.content) }
+                // console.log('\n')
+                
+                // 通过评论内容 获取好友的信息
+                // 如果有评论的话, 那么将评论列表里的所有人的 QQ 号都再进行深入爬取
+                if(item.rtlist){
+                    item.rtlist.forEach(function(replyItem, replyIndex){
+
+                        // 将爬到的 QQ 加入到队列中
+                        if(typeof replyItem.uin === 'number' && QQNumbers.indexOf(replyItem.uin) === -1){
+                            QQNumbers.push(replyItem.uin);
+                            getShuoShuoMsgList(replyItem.uin, currentQQ, shuoNum)
+                        }
+
+                    })
+                }
+            })
         })
 }
 
@@ -434,7 +509,19 @@ function getPgv(d) {
     其中 module3 里面是 最近访客
 
 留言板消息的请求地址: https://h5.qzone.qq.com/proxy/domain/m.qzone.qq.com/cgi-bin/new/get_msgb?uin=3095623630&hostUin=616772663&start=0&s=0.12159129992366813&format=jsonp&num=10&inCharset=utf-8&outCharset=utf-8&g_tk=320979203
+
+    最大获取数量 : 20
+
     可能的情况:
+        操作过于频繁
+            {"code":1003,"subcode":1003,"message":"操作过于频繁咯！休息会再来操作吧！","notice":0,"time":1468243828,"tips":"0000-0","data":{}}
+        系统繁忙
+            {"code":-5007,"subcode":-28,"message":"系统繁忙，请稍后再试","notice":0,"time":1468249236,"tips":"0000-0","data":{}}
+            {"code":-30002,"subcode":-3,"message":"系统繁忙，请稍后再试","notice":0,"time":1468249568,"tips":"0000-0","data":{}}
+        空间未开通
+            {"code":-4013,"subcode":-4013,"message":"空间未开通","notice":0,"time":1468249349,"tips":"0000-0","data":{}}
+        空间被封闭
+            {"code":-4014,"subcode":-4014,"message":"空间被封闭","notice":0,"time":1468249463,"tips":"0000-0","data":{}}
         权限没有
             _Callback({
                 "code":-4009,
@@ -469,7 +556,12 @@ function getPgv(d) {
 
 说说获取地址:
     https://h5.qzone.qq.com/proxy/domain/taotao.qq.com/cgi-bin/emotion_cgi_msglist_v6?uin=616772663&inCharset=utf-8&outCharset=utf-8&hostUin=616772663&notice=0&sort=0&pos=40&num=20&cgi_host=http%3A%2F%2Ftaotao.qq.com%2Fcgi-bin%2Femotion_cgi_msglist_v6&code_version=1&format=jsonp&need_private_comment=1&g_tk=2116221929
+
+        最大获取数量 : 40
+
         可能的情况:
+            操作过于频繁
+                {"censor_count":0,"censor_flag":0,"censor_total":0,"cginame":2,"code":-10000,"logininfo":{"name":"露娜sama","uin":3095623630},"message":"使用人数过多，请稍后再试","name":"露娜sama","right":1,"smoothpolicy":{"comsw.disable_soso_search":0,"l1sw.read_first_cache_only":0,"l2sw.dont_get_reply_cmt":0,"l2sw.mixsvr_frdnum_per_time":50,"l3sw.hide_reply_cmt":0,"l4sw.read_tdb_only":0,"l5sw.read_cache_only":0},"subcode":-10000,"usrinfo":{"concern":0,"createTime":"昨天11:23","fans":0,"followed":0,"msg":"作为一个路痴我要怎么考科目三……","msgnum":12,"name":"远恙°","uin":120021074}}
             权限设置
                 _Callback({"cginame":2,"code":-10031,"logininfo":{"name":"露娜sama","uin":3095623630},"message":"对不起,主人设置了保密,您没有权限查看","name":"露娜sama","right":2,"smoothpolicy":{"comsw.disable_soso_search":0,"l1sw.read_first_cache_only":0,"l2sw.dont_get_reply_cmt":0,"l2sw.mixsvr_frdnum_per_time":50,"l3sw.hide_reply_cmt":0,"l4sw.read_tdb_only":0,"l5sw.read_cache_only":0},"subcode":2,"usrinfo":{"concern":0,"createTime":"","fans":0,"followed":0,"msg":"","msgnum":0,"name":"七月","uin":562690455}});
             未登录
