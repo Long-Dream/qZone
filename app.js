@@ -1,11 +1,8 @@
 var request    = require("superagent");
 var cheerio    = require("cheerio");
 var fs         = require("fs")
-var QQSafe     = require('./QzoneLogin.js')
 
-var cp         = require("child_process");
-var exec       = require("child_process").exec;
-
+var QQSafe     = require('./QzoneLogin_lib.js')
 
 var jsonCookie = [];    // 以 JSON 形式保存的当前cookie值
 
@@ -20,22 +17,29 @@ var config     = {
     // 其中 isLogin 用于判断QQ是否已登录
     // 0 代表没有登录   1 代表登录成功
     QQ          : [
-        // {userQQ      : 3095623630, password    : 'testtest', isLogin     : 0 },
-        {userQQ      : 2170576112, password    : 'wcresdjh', isLogin     : 0 },
-        // {userQQ      : 3332755205, password    : 'xvee22634', isLogin     : 0 },
-        // {userQQ      : 3332784766, password    : 'kasi99753', isLogin     : 0 }
+        // {userQQ      : 3095623630, password    : 'testtest', isLogin     : 0 },   已冻结
+        // {userQQ      : 2170576112, password    : 'wcresdjh', isLogin     : 0 },   已冻结
+        // {userQQ      : 3332755205, password    : 'xvee22634', isLogin     : 0 },  已冻结
+        // {userQQ      : 3332784766, password    : 'kasi99753', isLogin     : 0 }   已冻结
     ],
 
     boardNum    : 20,    // 留言板每次抓取的数量
     boardMax    : 60,   // 留言板的最大抓取数量
     shuoNum     : 40,    // 说说每次抓取的数量
     shuoMax     : 120,   // 说说的最大抓取数量
-    timeout     : 3000   // 主函数两次爬取之间的间隔
+    timeout     : 5000   // 主函数两次爬取之间的间隔
 }
 
-// 判断当前是否处于输入验证码的状态中  0 代表不在输入验证码  大于 0 代表正在输入验证码
-// 如果正在输入验证码, 那么请求暂停 → 也就是 mainStep 先暂时延时一下
-var verifyFlag = 0;     
+var flags = {
+
+    // 判断当前是否处于输入验证码的状态中  0 代表不在输入验证码  大于 0 代表正在输入验证码
+    // 如果正在输入验证码, 那么请求暂停 → 也就是 mainStep 先暂时延时一下
+    verifyFlag : 0,
+
+    // 当前正在进行的请求的编号
+    verifyNum : -1
+}
+   
 
 // 通用的HTTP请求头(不含cookie)
 var HTTPheaders = {
@@ -89,14 +93,26 @@ var verifyHTTP = {
     'User-Agent':'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Ubuntu Chromium/51.0.2704.79 Chrome/51.0.2704.79 Safari/537.36'
 }
 
+/**
+ * 因为在引用 QQLogin.js 的时候就已经需要 module.exports 了, 所以将 module.exports 的定义提前到引入 QQLogin 之前
+ * 但同时也要保证位置在 内容 的定义之后
+ * @type {Object}
+ */
+module.exports = {
+    jsonCookie      : jsonCookie,
+    flags           : flags,
+    config          : config,
+    HTTPheaders     : HTTPheaders,
+    json2cookies    : json2cookies
+}
 
-getLoginCookie(0)
 
-
+var QQLogin    = require('./QQLogin.js')
+// QQLogin(0)
 
 
 // Panzer Vor !!
-// main();
+main();
 
 
 /**
@@ -105,7 +121,7 @@ getLoginCookie(0)
 function main(){
 
     // 每隔一段时间执行一次, 以防被 QQ空间 反爬程序盯上
-    setTimeout(function(){mainStep();}, config.timeout)
+    mainStep();
 
     /**
      * 主函数的单步函数
@@ -113,8 +129,8 @@ function main(){
     function mainStep(){
 
         // 如果正在输入验证码, 则延迟执行请求
-        if(!verifyFlag){
-            console.log("等待输入验证码ing....")
+        if(flags.verifyFlag){
+            // console.log("等待输入验证码ing....")
             setTimeout(function(){mainStep();}, config.timeout);
             return;
         }
@@ -199,360 +215,6 @@ function main(){
     }
 }
 
-
-/**
- * 获取登录过程中所必须的 cookie 值
- * 
- * @param  {QQ} currentQQID 当前爬虫正在使用的QQ号的ID
- */
-function getLoginCookie(currentQQID){
-
-    request.get("http://xui.ptlogin2.qq.com/cgi-bin/xlogin?proxy_url=http%3A//qzs.qq.com/qzone/v6/portal/proxy.html&daid=5&&hide_title_bar=1&low_login=0&qlogin_auto_login=1&no_verifyimg=1&link_target=blank&appid=549000912&style=22&target=self&s_url=http%3A%2F%2Fqzs.qq.com%2Fqzone%2Fv5%2Floginsucc.html%3Fpara%3Dizone&pt_qr_app=%E6%89%8B%E6%9C%BAQQ%E7%A9%BA%E9%97%B4&pt_qr_link=http%3A//z.qzone.com/download.html&self_regurl=http%3A//qzs.qq.com/qzone/v6/reg/index.html&pt_qr_help_link=http%3A//z.qzone.com/download.html")
-        .set(HTTPheaders)
-        .end(function(err, data){
-            if(err) throw err;      // 获取登录所必须的 cookie 值 失败!
-
-            // 逐个访问 set-cookie 并进行添加
-            data.headers['set-cookie'].forEach(function(item, index){
-                var pattern = /(.*?)=(.*?);/;
-                var match = pattern.exec(item);
-
-                var oneCookie = {};
-                oneCookie[match[1]] = match[2]
-                if(match !== null){addCookie(oneCookie, currentQQID)}
-            })
-
-            // 这里装一些其他的, 比较重要的cookie
-            var otherCookie = {
-                _qz_referrer    : "qzone.qq.com",
-                pgv_pvid        : getPgv_1(),
-                pgv_info        : "ssid=" + getPgv_1('s'),
-                pgv_pvi         : getPgv_2(),
-                pgv_si          : getPgv_2('s'),
-                ptui_loginuin   : config.QQ[currentQQID].userQQ
-            }
-
-            addCookie(otherCookie, currentQQID)
-
-            getLoginCookie_qrsig(currentQQID);
-
-        })
-}
-
-/**
- * 获取登录过程中所必须的 cookie 值----qrsig
- * 
- * @param  {QQ} currentQQID 当前爬虫正在使用的QQ号的ID
- */
-function getLoginCookie_qrsig(currentQQID){
-
-    request.get("http://ptlogin2.qq.com/ptqrshow?appid=549000912&e=2&l=M&s=3&d=72&v=4&t=" + Math.random() + "&daid=5")
-        .set(HTTPheaders)
-        .set({Cookie : json2cookies(jsonCookie[currentQQID])})
-        .end(function(err, data){
-            if(err) throw err;      // 获取 cookie : qrsig 失败
-
-            data.headers['set-cookie'].forEach(function(item, index){
-                var pattern = /(.*?)=(.*?);/;
-                var match = pattern.exec(item);
-
-                var oneCookie = {};
-                oneCookie[match[1]] = match[2]
-                if(match !== null){addCookie(oneCookie, currentQQID)}
-            })
-            getVerifyMsg(currentQQID)
-        })
-}
-
-
-/**
- * ***调用 QQLib 进行QQ的登录, 并将返回的 cookie 值存储到 jsonCookie 中*** 已废弃
- *
- * 实现登录模块, 该模块需要先进行验证码的验证, 并获取两个关键的字段 verifycode 和 pt_verifysession_v1
- * 应该使用 query 的字符串形式, 以做到防止 * 被转义
- * 如果登录成功, 就将 config 里面的 isLogin 设为1
- * 
- * @param  {QQ} currentQQID 当前爬虫正在使用的QQ号的ID
- */
-function QQLogin(currentQQID, verifycode, pt_verifysession_v1){
-    // 调用登录模块, 进行登录并获取到登陆后的 cookie 内容
-    // exec('python ./QQLib/test.py ' + config.QQ[currentQQID].userQQ + ' ' + config.QQ[currentQQID].password + ' ' + verifycode + ' ' + pt_verifysession_v1, function(err, stdout, stderr){
-
-    //     if(err) throw err; // 登录失败
-        
-    //     console.log(stdout)
-
-    //     out2jsoncookies(stdout, currentQQID);
-
-    //     config.QQ[currentQQID].isLogin = 1;
-
-    //     // getMainPage(616772663, config.userQQ, json2cookies(jsonCookie));
-    //     // getMsgBoard(616772663, 0, config.shuoNum);
-        
-    //     // console.log(jsonCookie);
-    //     // console.log(config)
-    // })
-    
-    // 利用 nodeJs 自己摸索登录模块的实现! Fighting!
-    
-    // delete jsonCookie[currentQQID].pt_user_id;
-    // delete jsonCookie[currentQQID].ptui_identifier;
-
-    
-    request.get("http://ptlogin2.qq.com/login")
-        .set({Cookie : json2cookies(jsonCookie[currentQQID])})
-        .set(LoginHeaders)
-        .query({
-            u               : config.QQ[currentQQID].userQQ,
-            pt_vcode_v1     : 1,
-            pt_randsalt     : 2,
-            // pt_vcode_v1     : 0,
-            // pt_randsalt     : 0,
-            ptredirect      : 0,
-            h               : 1,
-            g               : 1,
-            t               : 1,
-            from_ui         : 1,
-            ptlang          : 2052,
-            // js_ver          : 10167,
-            js_ver          : 10143,
-            js_type         : 1,
-            pt_uistyle      : 40,
-            aid             : 549000912,
-            daid            : 5,
-            // action          : "2-3-" + Date.now()
-            action          : '4-22-1450611437613'
-        })
-        .query("u1=http%3A%2F%2Fqzs.qq.com%2Fqzone%2Fv5%2Floginsucc.html%3Fpara%3Dizone")
-        .query("verifycode=" + verifycode)
-        .query("pt_verifysession_v1=" + pt_verifysession_v1)
-        .query("p=" + getP(currentQQID, verifycode))
-        .query("login_sig=" + jsonCookie[currentQQID].pt_login_sig)
-        .end(function(err, data){
-            if(err) throw err;      // 登录失败
-
-            // console.log(data)
-
-            data.on('data', function(chunk){
-                // console.log(data)
-                console.log(chunk.toString())
-            })
-        })
-}
-
-/**
- * 获取验证码的相关信息
- * 然后应该是将返回的内容添加到 cookie 里 
- * 
- * @param  {QQ} currentQQID 当前爬虫正在使用的QQ号的ID
- */
-function getVerifyMsg(currentQQID){
-
-    request.get('http://check.ptlogin2.qq.com/check')
-        .set({Cookie : json2cookies(jsonCookie[currentQQID])})
-        .set(HTTPheaders)
-        .query({
-            regmaster   : '',
-            pt_tea      : 2,
-            pt_vcode    : 1,
-            uin         : config.QQ[currentQQID].userQQ,
-            appid       : 549000912,
-            js_ver      : 10166,
-            js_type     : 1,
-            login_sig   : jsonCookie.pt_login_sig,
-            u1          : 'http://qzs.qq.com/qzone/v5/loginsucc.html?para=izone',
-            r           : Math.random(),
-            pt_uistyle  : 40
-        })
-        .end(function(err, data){
-            if(err) throw err;
-
-            // 这个请求里面也有一些比较重要的 cookie
-            data.headers['set-cookie'].forEach(function(item, index){
-                var pattern = /(.*?)=(.*?);/;
-                var match = pattern.exec(item);
-
-                var oneCookie = {};
-                oneCookie[match[1]] = match[2]
-                if(match !== null){addCookie(oneCookie, currentQQID)}
-            })
-
-            var text = '';
-
-            data.on('data', function(chunk){
-                text += chunk;
-            })
-
-            data.on('end', function(){
-
-                var verifyArr = text.replace(/^ptui_checkVC\(/, '').replace(/\);$/, '').replace(/'/g, '').split(',')
-
-                // 数组的第0个元素如果是 '1' , 则说明需要验证码; 如果第一个元素是 '0' , 则说明不需要验证码
-                if (verifyArr[0] === "0"){
-                    return console.log("QQ ID " + currentQQID +" 不需要验证码, 即将进行登录");
-                } else if (verifyArr[0] === "1") {
-                    console.log("QQ ID " + currentQQID +" 需要验证码, 即将进行验证码验证!")
-
-                    // 进入获取验证码的第二阶段
-                    getVerifyMoreMsg(currentQQID, verifyArr[1]);
-                    return;
-                }
-
-                // 不应该走到这里
-                throw new Error("一定是哪里出错了!");
-            })
-        })
-}
-
-/**
- * 获取验证码的相关信息 第二阶段
- * 需要用到第一阶段获取到的 cap_cd, 也就是 verifyArr[1]
- * 
- * @param  {QQ} currentQQID 当前爬虫正在接受治疗的QQ号的ID
- * @param  {string} cap_cd      第一阶段获取到的必要信息
- */
-function getVerifyMoreMsg(currentQQID, cap_cd){
-
-    request.get("http://captcha.qq.com/cap_union_show")
-        .set({Cookie : json2cookies(jsonCookie[currentQQID])})
-        .set(HTTPheaders)
-        .query({
-            clientype   : 2,
-            uin         : config.QQ[currentQQID].userQQ,
-            aid         : 549000912,
-            pt_style    : 40
-        })
-        .query('cap_cd=' + cap_cd)
-        .end(function(err, data){
-
-            if(err) throw err;  // 获取验证码消息 第二阶段
-
-            // 匹配 g_vsig
-            var match = data.text.match(/var g_vsig = ".*?"/);
-
-            // 如果不存在 g_vsig, 那就报错吧...
-            if(!match)  throw new Error("验证码第二阶段 g_vsig 匹配失败!")
-
-            var g_vsig = match[0].replace('var g_vsig = "', '').replace('"', '');
-
-            // 进入获取验证码的第三阶段
-            getVerifyImg(currentQQID, cap_cd, g_vsig)
-
-        })
-}
-
-/**
- * 获取验证码相关信息 第三阶段
- * 根据前两步用到的 cap_cd 和 g_vsig, 获取验证码图片
- * 
- * @param  {QQ} currentQQID 当前爬虫正在接受治疗的QQ号的ID
- * @param  {string} cap_cd      第一阶段获取到的必要信息
- * @param  {string} g_vsig      第二阶段获取到的必要信息
- */
-function getVerifyImg(currentQQID, cap_cd, g_vsig){
-
-    var req = request.get("http://captcha.qq.com/getimgbysig")
-        .set({Cookie : json2cookies(jsonCookie[currentQQID])})
-        .set(HTTPheaders)
-        .query({
-            clientype   : 2,
-            uin         : config.QQ[currentQQID].userQQ,
-            aid         : 549000912,
-            pt_style    : 40,
-            rand        : Math.random(),
-        })
-        .query('cap_cd=' + cap_cd)
-        .query('sig=' + g_vsig)
-        .end(function(err, data){
-
-            var imgName = 'ID' + currentQQID + '_' + new Date().toLocaleString().replace(/:/g, "").replace(/-/g, "").replace(/ /g, "_") + '.jpg'
-
-            fs.writeFile('./verifyImg/' + imgName, data.body, function(err){
-                if(err) throw err;      // 保存验证码图片时出现问题!
-
-                // 此时禁止所有请求
-                verifyFlag += 1;
-
-                console.log("验证码图片已经保存, 请打开" + './verifyImg/' + imgName +　' , 并在下方输入验证码: ')
-
-                // 开启输入
-                process.stdin.resume();
-                process.stdin.setEncoding('utf8');
-
-                // 绑定输入事件, 此处的 dataFun 是为了给函数起个名字, 方便到时候进行移除
-                process.stdin.on('data', function dataFun(chunk){
-
-                    process.stdin.pause();
-
-                    // 先行检查验证码的字符数
-                    if(chunk.length !== 5){
-                        process.stdin.resume();
-                        console.log("验证码只有 4 个字符哦, 请重新输入:");
-                        return;
-                    }
-
-                    // NOTICE: 有坑注意!  及时移除事件, 不然下次执行 process.stdin.on('data') 还会绑定第二个事件!
-                    process.stdin.removeListener('data', dataFun);
-
-                    ans = chunk.slice(0, 4);
-                    getVerifyResult(currentQQID, cap_cd, g_vsig, ans);
-                    return;
-                })
-
-            })
-        })
-}
-
-/**
- * 获取验证码的相关信息 第四阶段
- * 用于对输入的验证码进行验证
- * 
- * @param  {QQ} currentQQID 当前爬虫正在接受治疗的QQ号的ID
- * @param  {string} cap_cd      第一阶段获取到的必要信息
- * @param  {string} g_vsig      第二阶段获取到的必要信息
- * @param  {string} ans         第三阶段所收集到的验证码答案
- */
-function getVerifyResult(currentQQID, cap_cd, g_vsig, ans){
-
-    request.get("http://captcha.qq.com/cap_union_verify_new")
-        .set({Cookie : json2cookies(jsonCookie[currentQQID])})
-        .set(HTTPheaders)
-        .query({
-            clientype   : 2,
-            uin         : config.QQ[currentQQID].userQQ,
-            aid         : 549000912,
-            pt_style    : 40,
-            rand        : Math.random(),
-            capclass    : 0,
-            ans         : ans
-        })
-        .query('cap_cd=' + cap_cd)
-        .query('sig=' + g_vsig)
-        .end(function(err, data){
-            if(err) throw err;      // 获取验证码结果失败
-
-            var resultJson = JSON.parse(data.text);
-
-            // 验证失败
-            if (resultJson.errorCode === "50"){
-                console.log(resultJson.errMessage);
-                // 重发获取 sig 的请求就行
-                getVerifyMoreMsg(currentQQID, cap_cd)
-                return;
-            }
-
-            // 验证成功
-            // 但我并不知道验证成功后应该怎么做....
-            if (resultJson.errorCode === "0"){
-                console.log("验证成功, 撒花~~~  即将进行登录");
-                QQLogin(currentQQID, resultJson.randstr, resultJson.ticket)
-            }
-        })
-
-}
-
-
-
 /**
  * 获取主页面
  * 主要目的是返回的 响应头有好几个 set-cookie 貌似有点用....
@@ -592,8 +254,6 @@ function getMainPage(targetQQ, currentQQID){
                 qzone_check : config.QQ[currentQQID].userQQ + '_' + Math.round(Date.now() / 1000)
             });
 
-            // console.log(jsonCookie)
-
         })
 }
 
@@ -624,7 +284,7 @@ function getUserInfoAll(targetQQ, currentQQID){
                 text += chunk;
             })
             data.on('end', function(chunk){
-                console.log("QQ ID " + currentQQID +" 已获得 " + targetQQ + " 的个人档信息!");
+                log(currentQQID, "已获得 " + targetQQ + " 的个人档信息!");
             })
             
         })
@@ -677,14 +337,17 @@ function getMsgBoard(targetQQ, currentQQID, boardNum, startNum){
 
                 // 权限检查 以及 登录检查
                 switch(boardJson.code){
-                    case -4009  : return console.log('获取留言板 ' +　targetQQ + " : 没有权限");
-                    case -4001  : return console.log('获取留言板 ' +　targetQQ + " : 没有登录");
-                    case  1003  : return console.log('获取留言板 ' +　targetQQ + " : 操作过于频繁");
-                    case -5007  : return console.log('获取留言板 ' +　targetQQ + " : 系统繁忙1");
-                    case -5008  : return console.log('获取留言板 ' +　targetQQ + " : 系统繁忙2");
-                    case -30002 : return console.log('获取留言板 ' +　targetQQ + " : 系统繁忙3");
-                    case -4013  : return console.log('获取留言板 ' +　targetQQ + " : 空间未开通");
-                    case -4014  : return console.log('获取留言板 ' +　targetQQ + " : 空间被封闭");
+                    case -4009  : return log(currentQQID, '获取留言板 ' +　targetQQ + " : 没有权限");
+                    case -4001  : 
+                        log(currentQQID, '获取留言板 ' +　targetQQ + " : 没有登录");
+                        config.QQ[currentQQID].isLogin = 0;
+                        return;
+                    case  1003  : return log(currentQQID, '获取留言板 ' +　targetQQ + " : 操作过于频繁");
+                    case -5007  : return log(currentQQID, '获取留言板 ' +　targetQQ + " : 系统繁忙1");
+                    case -5008  : return log(currentQQID, '获取留言板 ' +　targetQQ + " : 系统繁忙2");
+                    case -30002 : return log(currentQQID, '获取留言板 ' +　targetQQ + " : 系统繁忙3");
+                    case -4013  : return log(currentQQID, '获取留言板 ' +　targetQQ + " : 空间未开通");
+                    case -4014  : return log(currentQQID, '获取留言板 ' +　targetQQ + " : 空间被封闭");
                 }
 
                 // 返回消息代码 二次确认
@@ -694,7 +357,7 @@ function getMsgBoard(targetQQ, currentQQID, boardNum, startNum){
                 // 就算返回代码正确, list 仍然可能没有被定义
                 if(!boardJson.data.commentList) return;
 
-                console.log("QQ ID " + currentQQID +" 留言板消息" +　targetQQ + " : 获取成功, 从第 " + startNum + " 条开始, 留言板的信息共有 " + boardJson.data.total + " 条");
+                log(currentQQID, "留言板消息" +　targetQQ + " : 获取成功, 从第 " + startNum + " 条开始, 留言板的信息共有 " + boardJson.data.total + " 条");
 
                 // 如果 startNum 为 0, 就说明是首次抓取该 QQ 号的留言板
                 // 那就对留言板的数量进行分析 并对每一页都发出抓取信号
@@ -714,8 +377,7 @@ function getMsgBoard(targetQQ, currentQQID, boardNum, startNum){
                     // TODO : 后期程序成型后, 将小鲜肉立刻深入改为排队站好逐个深入
                     if(isFreshman(item.uin)){
                         QQNumbers.push(item.uin);
-                        console.log("QQ ID " + currentQQID +" 当前留言板爬取 QQ : " + targetQQ + ", 已将 QQ " + item.uin + " 加入队列")
-                        // getMsgBoard(item.uin, currentQQID, boardNum);
+                        // log(currentQQID, "当前留言板爬取 QQ : " + targetQQ + ", 已将 QQ " + item.uin + " 加入队列")
                     }
                 })
             })
@@ -761,9 +423,12 @@ function getShuoShuoMsgList(targetQQ, currentQQID, shuoNum, startNum){
 
             // 权限检查 以及 登录检查
             switch(msgListJson.code){
-                case -10031 : return console.log('获取说说 ' +　targetQQ + " : 没有权限");
-                case -3000  : return console.log('获取说说 ' +　targetQQ + " : 没有登录");
-                case -10000 : return console.log('获取说说 ' +　targetQQ + " : 操作过于频繁");
+                case -10031 : return log(currentQQID, '获取说说 ' +　targetQQ + " : 没有权限");
+                case -3000  : 
+                    log(currentQQID, '获取说说 ' +　targetQQ + " : 没有登录");
+                    config.QQ[currentQQID].isLogin = 0;
+                    return;
+                case -10000 : return log(currentQQID, '获取说说 ' +　targetQQ + " : 操作过于频繁");
             }
 
             // 返回消息代码 二次确认
@@ -773,7 +438,7 @@ function getShuoShuoMsgList(targetQQ, currentQQID, shuoNum, startNum){
             // 就算返回代码正确, list 仍然可能没有被定义
             if(!msgListJson.msglist) return;
 
-            console.log("QQ ID " + currentQQID +" 说说消息" +　targetQQ + " : 获取成功, 从第 " + startNum + " 条开始, 留言板的信息共有 " + msgListJson.total + " 条");
+            log(currentQQID, "说说消息" +　targetQQ + " : 获取成功, 从第 " + startNum + " 条开始, 留言板的信息共有 " + msgListJson.total + " 条");
 
             // 如果 startNum 为 0, 就说明是首次抓取该 QQ 号的说说
             // 那就对说说的数量进行分析 并对每一页都发出抓取信号
@@ -798,8 +463,7 @@ function getShuoShuoMsgList(targetQQ, currentQQID, shuoNum, startNum){
                         // 将爬到的 QQ 加入到队列中
                         if(typeof replyItem.uin === 'number' && isFreshman(replyItem.uin)){
                             QQNumbers.push(replyItem.uin);
-                            console.log("QQ ID " + currentQQID +" 当前说说爬取 QQ : " + targetQQ + ", 已将 QQ " + replyItem.uin + " 加入队列")
-                            // getShuoShuoMsgList(replyItem.uin, currentQQID, shuoNum)
+                            // log(currentQQID, "当前说说爬取 QQ : " + targetQQ + ", 已将 QQ " + replyItem.uin + " 加入队列")
                         }
 
                     })
@@ -842,35 +506,6 @@ function getRecentFriends(targetQQ, currentQQID){
         })
 
 }
-
-
-/**
- * 获取QQ空间验证手段之一的 字段 p
- * 这加密方式能恶心坏我....结果到最终都不知道这个 P 是怎么得出来的...
- * 反正就是把现行的 c_login_2.js 先把 window 全部换成 global
- * 然后一部分一部分地拷进 js 文件里
- *
- * 啊啊啊啊啊啊啊啊啊啊啊啊啊啊啊啊啊啊啊啊啊啊啊啊啊啊啊啊啊啊啊啊啊啊啊啊啊啊啊
- * 
- * @param  {QQ}     currentQQID 当前爬虫正在使用的QQ号的ID
- * @param  {string} verifycode  获取到的 verifycode
- * @return {string}             计算出来的结果 p
- */
-function getP(currentQQID, verifycode){
-
-    var password = config.QQ[currentQQID].password;
-    var salt     = QQSafe.uin2hex(config.QQ[currentQQID].userQQ);
-
-    /**
-     * QQSafe.getEncryption 是腾讯自家的计算字段 p 的方法
-     * 四个参数的含义略
-     */
-    var result = QQSafe.getEncryption(password, salt, verifycode);
-
-    return result;
-
-}
-
 
 /**
  * 获取QQ空间验证手段之一的 G_TK
@@ -930,48 +565,6 @@ function json2cookies(json){
     return cookie;
 }
 
-/**
- * 向当前 cookie 中添加新的 cookie 值
- *
- * @param {object} obj          cookie 对象 里面存储者键和值
- * @param {number} cookieID     当前 QQ 号的ID
- */
-function addCookie(obj, cookieID){
-
-    if(typeof obj !== 'object' || typeof cookieID !== 'number') throw new Error("添加cookie : 请输入正确的格式!")
-
-    if(typeof jsonCookie[cookieID] === 'undefined') jsonCookie[cookieID] = {};
-
-    for(var i in obj){
-        jsonCookie[cookieID][i] = obj[i];
-    }
-    return;
-
-}
-
-/**
- * 计算 cookie 中的 pgv_pvid 和 pgv_info 的值
- * 百度到的东西...不知道靠不靠谱
- * 计算 pgv_pvid  就是 getPgv_1()
- * 计算 pgv_info  则是 getPgv_1('s')
- * 
- * @return {string}   计算到的 pgv_pvid 或 pgv_info
- */
-function getPgv_1(d) {
-    return (d || "") + (Math.round(Math.random() * 2147483647) * (new Date().getUTCMilliseconds())) % 10000000000;
-}
-
-/**
- * 计算 cookie 中的 pgv_pvi 和 pgv_si 的值
- * 百度到的东西...不知道靠不靠谱
- * 计算 pgv_pvi  就是 getPgv_2()
- * 计算 pgv_si   则是 getPgv_2('s')
- * 
- * @return {string}   计算到的 pgv_pvi 或 pgv_si
- */
-function getPgv_2(d) {
-    return (d || "") + Math.round(2147483647 * (Math.random() || 0.5)) * +new Date % 1E10
-}
 
 /**
  * 判断是否已经被爬过
@@ -982,6 +575,19 @@ function getPgv_2(d) {
 function isFreshman(QQ){
     return (QQNumbers.indexOf(QQ) === -1 && QQdone.indexOf(QQ) === -1);
 }
+
+/**
+ * 格式化输出日志
+ * 
+ * @param  {QQ} currentQQID 当前爬虫正在使用的QQ号的ID
+ * @param  {str} msg         消息内容
+ */
+function log(currentQQID, msg){
+    console.log("QQ ID " + currentQQID +" " + msg);
+}
+
+
+
 
 /**
 王豪QQ    616772663  

@@ -1019,5 +1019,25 @@ $.RSA = $pt.RSA = function() {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 module.exports.getEncryption = $.Encryption.getEncryption;
 module.exports.uin2hex = $.str.uin2hex;
