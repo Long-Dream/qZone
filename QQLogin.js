@@ -193,9 +193,10 @@ function getVerifyImg(currentQQID, cap_cd, g_vsig){
                     return log(currentQQID, "正在等待当前验证码验证结束!")
 
                 // 此时禁止所有请求
-                main.flags.verifyFlag = 1;
+                main.flags.verifyFlag += 1;
                 main.flags.verifyNum = currentQQID;
 
+                console.log("\n\n")
                 log(currentQQID, "验证码图片已经保存, 请打开" + './verifyImg/' + imgName +　' , 并在下方输入验证码: ')
 
                 // 显示图片, 同时获取子进程的 pid
@@ -261,7 +262,11 @@ function getVerifyResult(currentQQID, cap_cd, g_vsig, ans){
 
             // 验证失败
             if (resultJson.errorCode === "50"){
-                log(currentQQID, resultJson.errMessage);
+                log(currentQQID, "验证失败, 请重试");
+
+                // 此处让 verifyFlag 的值减1 因为每进行一次输入都会使其值加 1
+                main.flags.verifyFlag -= 1;
+
                 // 重发获取 sig 的请求就行
                 getVerifyMoreMsg(currentQQID, cap_cd)
                 return;
@@ -287,6 +292,8 @@ function getVerifyResult(currentQQID, cap_cd, g_vsig, ans){
  * 实现登录模块, 该模块需要先进行验证码的验证, 并获取两个关键的字段 verifycode 和 pt_verifysession_v1
  * 应该使用 query 的字符串形式, 以做到防止 * 被转义
  * 如果登录成功, 就将 main.config 里面的 isLogin 设为1
+ *
+ * 注意: 参数中, 如果需要验证码, pt_vcode_v1 的值就为 1 ; 如果不需要验证码, pt_vcode_v1 的值就为 0
  * 
  * @param  {QQ} currentQQID 当前爬虫正在使用的QQ号的ID
  * @param  {string} verifycode  第四阶段获取到的 verifycode
@@ -294,36 +301,17 @@ function getVerifyResult(currentQQID, cap_cd, g_vsig, ans){
  * 
  */
 function QQTryLogin(currentQQID, verifycode, pt_verifysession_v1){
-    // 调用登录模块, 进行登录并获取到登陆后的 cookie 内容
-    // exec('python ./QQLib/test.py ' + main.config.QQ[currentQQID].userQQ + ' ' + main.config.QQ[currentQQID].password + ' ' + verifycode + ' ' + pt_verifysession_v1, function(err, stdout, stderr){
 
-    //     if(err) throw err; // 登录失败
-        
-    //     console.log(stdout)
-
-    //     out2jsoncookies(stdout, currentQQID);
-
-    //     main.config.QQ[currentQQID].isLogin = 1;
-
-    //     // getMainPage(616772663, main.config.userQQ, main.json2cookies(main.jsonCookie));
-    //     // getMsgBoard(616772663, 0, main.config.shuoNum);
-        
-    //     // console.log(main.jsonCookie);
-    //     // console.log(main.config)
-    // })
-    
-    // 利用 nodeJs 自己摸索登录模块的实现! Fighting!
-    
-    // delete main.jsonCookie[currentQQID].pt_user_id;
-    // delete main.jsonCookie[currentQQID].ptui_identifier;
-
+    // 需要验证码的话, verifycode 的形式为 @WgU; 不需要的话, verifycode 的形式为 !BSE.
+    // 所以通过判断 @ 的有无可以判断过程中有没有使用验证码  1 为 使用了验证码  0 为 没有使用验证码
+    var pt_vcode_v1 = verifycode.indexOf("@") >= 0 ? 1 : 0;
     
     request.get("http://ptlogin2.qq.com/login")
         .set({Cookie : main.json2cookies(main.jsonCookie[currentQQID])})
         .set(main.HTTPheaders)
         .query({
             u               : main.config.QQ[currentQQID].userQQ,
-            pt_vcode_v1     : 1,
+            pt_vcode_v1     : pt_vcode_v1,
             pt_randsalt     : 2,
             ptredirect      : 0,
             h               : 1,
@@ -359,15 +347,19 @@ function QQTryLogin(currentQQID, verifycode, pt_verifysession_v1){
                 // 如果第一个参数是 0 , 则说明登录成功; 如果第一个参数不是 0 ,那就有各种各样的情况了...姑且认为账号被冻结了吧
                 if(verifyArr[0] === '0'){
                     log(currentQQID, "登录成功")
-                    getSuccessCookies(currentQQID, verifyArr[2]);
+
+                    getSuccessCookies(currentQQID, verifyArr[2], pt_vcode_v1);
                 } else {
                     log(currentQQID, "登录失败!");
                     console.log(text);
 
                     // 就算被冻结了也要让路!
-                    main.flags.verifyFlag = 0;
-                    main.flags.verifyNum = -1;
-
+                    // 当然是在进行了验证码验证的情况下
+                    // P.S. 就算被冻结 收到的 verifycode 一样是以 @ 打头
+                    if(pt_verifysession_v1){
+                        main.flags.verifyFlag -= 1;
+                        main.flags.verifyNum = -1;
+                    }
                     // 使 账号的 isLogin 定为 2, 视为已冻结
                     main.config.QQ[currentQQID].isLogin = 2;
                 }
@@ -381,11 +373,14 @@ function QQTryLogin(currentQQID, verifycode, pt_verifysession_v1){
  * 第六阶段
  * 
  * 在验证成功后, 获取 第五阶段 所给的网址, 以获取进行访问所必须的 cookie 值
+ * 此处需要注意的是, 需不需要验证码所得到的 set-cookie 是不一样的
+ * 比如, 需要验证码就是 p_skey , 而不需要验证码则是 skey
  * 
- * @param  {QQ} currentQQID 当前爬虫正在使用的QQ号的ID
- * @param  {url} url        第五阶段获取到的 url
+ * @param  {QQ} currentQQID         当前爬虫正在使用的QQ号的ID
+ * @param  {url} url                第五阶段获取到的 url
+ * @param  {boolean} isVerify       是否采用了验证码   1 为 使用了验证码  0 为 没有使用验证码
  */
-function getSuccessCookies(currentQQID, url){
+function getSuccessCookies(currentQQID, url, isVerify){
 
     request.get(url)
         .set(main.HTTPheaders)
@@ -399,13 +394,14 @@ function getSuccessCookies(currentQQID, url){
 
             setCookie(currentQQID, data);
             
-            // console.log(main.jsonCookie[0])
-            
             // 此时允许所有请求
-            main.flags.verifyFlag = 0;
+            // 因为只有当进行了验证码验证的情况下才对 verifyFlag 有 +1 的操作, 所以此处进行减一的操作
+            if(isVerify) {
+                main.flags.verifyFlag -= 1;
 
-            // 同时将当前正在进行的请求的编号置为初始值 -1
-            main.flags.verifyNum = -1;
+                // 同时将当前正在进行的请求的编号置为初始值 -1
+                main.flags.verifyNum = -1;
+            }
 
             // 使 账号的 isLogin 定为 1, 视为已成功登录
             main.config.QQ[currentQQID].isLogin = 1;

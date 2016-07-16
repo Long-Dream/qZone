@@ -2,7 +2,11 @@ var request    = require("superagent");
 var cheerio    = require("cheerio");
 var fs         = require("fs")
 
+var db         = require("./db/db.js")
+
 var QQSafe     = require('./QzoneLogin_lib.js')
+var config     = require("./config.js")
+var db         = require("./db/db.js");
 
 var jsonCookie = [];    // 以 JSON 形式保存的当前cookie值
 
@@ -11,24 +15,7 @@ var QQdone     = [];    // 收集到的QQ号码, 已爬取
 
 var QQtorrent  = [470501491];    // 种子 QQ 号, 星星之火, 可以燎原
 
-// Config
-var config     = {
-    // QQ 数组
-    // 其中 isLogin 用于判断QQ是否已登录
-    // 0 代表没有登录   1 代表登录成功
-    QQ          : [
-        // {userQQ      : 3095623630, password    : 'testtest', isLogin     : 0 },   已冻结
-        // {userQQ      : 2170576112, password    : 'wcresdjh', isLogin     : 0 },   已冻结
-        // {userQQ      : 3332755205, password    : 'xvee22634', isLogin     : 0 },  已冻结
-        // {userQQ      : 3332784766, password    : 'kasi99753', isLogin     : 0 }   已冻结
-    ],
 
-    boardNum    : 20,    // 留言板每次抓取的数量
-    boardMax    : 60,   // 留言板的最大抓取数量
-    shuoNum     : 40,    // 说说每次抓取的数量
-    shuoMax     : 120,   // 说说的最大抓取数量
-    timeout     : 5000   // 主函数两次爬取之间的间隔
-}
 
 var flags = {
 
@@ -52,45 +39,7 @@ var HTTPheaders = {
     'User-Agent'        : 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Ubuntu Chromium/51.0.2704.79 Chrome/51.0.2704.79 Safari/537.36',
     'Upgrade-Insecure-Requests'     : '1',   
     'Pragma'            : 'no-cache',
-    // 'Host'              : 'r.qzone.qq.com'
-    // 'Host' : 'base.s21.qzone.qq.com',
-    // 'Host' : 'xui.ptlogin2.qq.com',
     'Referer' : 'http://ctc.qzs.qq.com/qzone/profile/index.html'
-}
-
-var LoginHeaders = {
-    'Accept' : '*/*',
-    'Accept-Encoding'   : 'gzip, deflate, sdch',
-    'Accept-Language'   : 'zh-CN,zh;q=0.8,zh-TW;q=0.6',
-    'Connection'        : 'keep-alive',
-    'Host'              : 'ptlogin2.qq.com',
-    'Referer'           : 'http://xui.ptlogin2.qq.com/cgi-bin/xlogin?proxy_url=http%3A//qzs.qq.com/qzone/v6/portal/proxy.html&daid=5&&hide_title_bar=1&low_login=0&qlogin_auto_login=1&no_verifyimg=1&link_target=blank&appid=549000912&style=22&target=self&s_url=http%3A%2F%2Fqzs.qq.com%2Fqzone%2Fv5%2Floginsucc.html%3Fpara%3Dizone&pt_qr_app=%E6%89%8B%E6%9C%BAQQ%E7%A9%BA%E9%97%B4&pt_qr_link=http%3A//z.qzone.com/download.html&self_regurl=http%3A//qzs.qq.com/qzone/v6/reg/index.html&pt_qr_help_link=http%3A//z.qzone.com/download.html',
-    'User-Agent'        : 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Ubuntu Chromium/51.0.2704.79 Chrome/51.0.2704.79 Safari/537.36'
-}
-
-
-// 测试性质 留言板的请求头
-var msgBoardHeader = {
-    'Accept' : '*/*',
-    'Accept-Encoding'   : 'gzip, deflate, sdch, br',
-    'Accept-Language'   : 'zh-CN,zh;q=0.8,zh-TW;q=0.6',
-    'Cache-Control'     : 'no-cache',
-    'Pragma'            : 'no-cache',
-    'referer'           : 'http://user.qzone.qq.com/616772663',
-    'User-Agent'        : 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Ubuntu Chromium/51.0.2704.79 Chrome/51.0.2704.79 Safari/537.36',
-}
-
-// 验证码 HTTP
-var verifyHTTP = {
-    'Accept':'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-    'Accept-Encoding':'gzip, deflate, sdch',
-    'Accept-Language':'zh-CN,zh;q=0.8,zh-TW;q=0.6',
-    'Cache-Control':'no-cache',
-    'Connection':'keep-alive',
-    'Host':'check.ptlogin2.qq.com',
-    'Pragma':'no-cache',
-    'Upgrade-Insecure-Requests':'1',
-    'User-Agent':'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Ubuntu Chromium/51.0.2704.79 Chrome/51.0.2704.79 Safari/537.36'
 }
 
 /**
@@ -185,6 +134,10 @@ function main(){
         config.QQ.forEach(function(item, index){
             if(!item.isLogin){
                 console.log("QQ 第 " + index + " 号 ,QQ 号 " + item.userQQ + " 准备登录!");
+
+                // 使 isLogin 为 3 意为正在登录
+                config.QQ[index].isLogin = 3;
+
                 QQLogin(index);
             } else if(item.isLogin === 1){
                 QQlist.push(index);
@@ -215,47 +168,6 @@ function main(){
     }
 }
 
-/**
- * 获取主页面
- * 主要目的是返回的 响应头有好几个 set-cookie 貌似有点用....
- * 其他的目的...慢慢摸索吧...
- * 
- * @param  {QQ} targetQQ  目标人物的QQ号
- * @param  {QQ} currentQQID 当前爬虫正在使用的QQ号的ID
- */
-function getMainPage(targetQQ, currentQQID){
-    request.get("http://user.qzone.qq.com/" + targetQQ)
-        .set(HTTPheaders)
-        .set({Cookie : json2cookies(jsonCookie[currentQQID])})
-        .end(function(err, data){
-            if(err) throw err; // 获取 QQ空间主页面失败
-            data.headers['set-cookie'].forEach(function(item, index){
-                var pattern = /(.*?)=(.*?);/;
-                var match = pattern.exec(item);
-                if(match !== null){addCookie(match[1], match[2])}
-            })
-
-            // 先加这么多... cookie多一点总比少一点好....应该是这样吧
-            addCookie({
-                pgv_pvi     : getPgv(),
-                pgv_si      : getPgv('s'),
-                pgv_info    : 'ssid=' + getPgv('s'),
-                pgv_pvid    : getPgv(),
-                pac_uid     : '1_' + config.QQ[currentQQID].userQQ,
-                o_cookie    : config.QQ[currentQQID].userQQ,
-                QZ_FE_WEBP_SUPPORT : 1,
-                __Q_w_s_hat_seed : 1,
-                __Q_w_s__QZN_TodoMsgCnt : 1,
-                Loading     : 'Yes',
-                cpu_performance_v8 : 2,
-                qqmusic_uin : '',
-                qqmusic_key : '',
-                qqmusic_fromtag : '',
-                qzone_check : config.QQ[currentQQID].userQQ + '_' + Math.round(Date.now() / 1000)
-            });
-
-        })
-}
 
 /**
  * 获取个人档里的相关信息
@@ -273,7 +185,7 @@ function getUserInfoAll(targetQQ, currentQQID){
             vuin    : config.QQ[currentQQID].userQQ,
             fupdate : 1,
             rd      : 0.057868526378582094,
-            g_tk    : getGTK(jsonCookie[currentQQID].p_skey)
+            g_tk    : getGTK(currentQQID)
         })
         .end(function(err, data){
 
@@ -284,7 +196,24 @@ function getUserInfoAll(targetQQ, currentQQID){
                 text += chunk;
             })
             data.on('end', function(chunk){
-                log(currentQQID, "已获得 " + targetQQ + " 的个人档信息!");
+
+                var userInfoJson = JSON.parse(text.replace(/^_Callback\(/, '').replace(/\);$/, ''));
+
+                // 权限检查 以及 登录检查
+                switch(userInfoJson.code){
+                    case -4009  : return log(currentQQID, '获取个人档 ' +　targetQQ + " : 没有权限");
+                }
+
+                // 返回消息代码 二次确认
+                if(userInfoJson.code !==  0) {debugger;return;}
+
+                // log(currentQQID, "已获得 " + targetQQ + " 的个人档信息!");
+
+                // 将返回的个人档的对象添加到数据库中
+                db.collection("UserInfo").insert(userInfoJson.data, function(err){
+                    if(err) throw err;
+                    log(currentQQID, targetQQ + " 的个人档信息, 已加入数据库!")
+                })
             })
             
         })
@@ -313,7 +242,7 @@ function getMsgBoard(targetQQ, currentQQID, boardNum, startNum){
     startNum = startNum || 0;
 
     request.get('https://h5.qzone.qq.com/proxy/domain/m.qzone.qq.com/cgi-bin/new/get_msgb')
-        .set(msgBoardHeader)
+        .set(HTTPheaders)
         .set({Cookie : json2cookies(jsonCookie[currentQQID])})
         .query({
             uin         : config.QQ[currentQQID].userQQ,
@@ -323,7 +252,7 @@ function getMsgBoard(targetQQ, currentQQID, boardNum, startNum){
             num         : 20,
             inCharset   : 'utf-8',
             outCharset  : 'utf-8',
-            g_tk        : getGTK(jsonCookie[currentQQID].p_skey)
+            g_tk        : getGTK(currentQQID)
         })
         .end(function(err, data){
             if(err) throw err;      // 获取留言板消息失败
@@ -340,7 +269,8 @@ function getMsgBoard(targetQQ, currentQQID, boardNum, startNum){
                     case -4009  : return log(currentQQID, '获取留言板 ' +　targetQQ + " : 没有权限");
                     case -4001  : 
                         log(currentQQID, '获取留言板 ' +　targetQQ + " : 没有登录");
-                        config.QQ[currentQQID].isLogin = 0;
+                        // 这是一个悲伤的事实... 在爬取过程中如果登录被退出, 那就是意味着账号已被冻结
+                        config.QQ[currentQQID].isLogin = 2;
                         return;
                     case  1003  : return log(currentQQID, '获取留言板 ' +　targetQQ + " : 操作过于频繁");
                     case -5007  : return log(currentQQID, '获取留言板 ' +　targetQQ + " : 系统繁忙1");
@@ -355,7 +285,10 @@ function getMsgBoard(targetQQ, currentQQID, boardNum, startNum){
                 // if(boardJson.code !==  0) throw new Error("获取留言板, 收到未知代码")
 
                 // 就算返回代码正确, list 仍然可能没有被定义
-                if(!boardJson.data.commentList) return;
+                if(!boardJson.data.commentList || boardJson.data.commentList.length === 0) return;
+
+                // 留言板有一种特殊情况, 那就是主人设置了 serect, 那么就也不行
+                if(boardJson.data.commentList[0].secret === 1) return log(currentQQID, '获取留言板 ' +　targetQQ + " : 主人设置其为隐私");
 
                 log(currentQQID, "留言板消息" +　targetQQ + " : 获取成功, 从第 " + startNum + " 条开始, 留言板的信息共有 " + boardJson.data.total + " 条");
 
@@ -366,6 +299,12 @@ function getMsgBoard(targetQQ, currentQQID, boardNum, startNum){
                         getMsgBoard(targetQQ, currentQQID, boardNum, i)
                     }
                 }
+
+                // 将返回的说说的对象数组添加到数据库中
+                db.collection("MsgBoard").insert(boardJson.data.commentList, function(err){
+                    if(err) throw err;
+                    log(currentQQID, boardJson.data.commentList.length + " 条留言板消息, 已加入数据库!")
+                })
 
                 boardJson.data.commentList.forEach(function(item, index){
 
@@ -397,7 +336,7 @@ function getShuoShuoMsgList(targetQQ, currentQQID, shuoNum, startNum){
     startNum = startNum || 0;
 
     request.get("https://h5.qzone.qq.com/proxy/domain/taotao.qq.com/cgi-bin/emotion_cgi_msglist_v6")
-        .set(msgBoardHeader)
+        .set(HTTPheaders)
         .set({Cookie : json2cookies(jsonCookie[currentQQID])})
         .query({
             uin         : targetQQ,
@@ -412,7 +351,7 @@ function getShuoShuoMsgList(targetQQ, currentQQID, shuoNum, startNum){
             code_version    : 1,
             format      : 'jsonp',
             need_private_comment    : 1,
-            g_tk        : getGTK(jsonCookie[currentQQID].p_skey)
+            g_tk        : getGTK(currentQQID)
         })
         .end(function(err, data){
             if(err) throw err;      // 获取说说消息失败
@@ -426,7 +365,8 @@ function getShuoShuoMsgList(targetQQ, currentQQID, shuoNum, startNum){
                 case -10031 : return log(currentQQID, '获取说说 ' +　targetQQ + " : 没有权限");
                 case -3000  : 
                     log(currentQQID, '获取说说 ' +　targetQQ + " : 没有登录");
-                    config.QQ[currentQQID].isLogin = 0;
+                    // 这是一个悲伤的事实... 在爬取过程中如果登录被退出, 那就是意味着账号已被冻结
+                    config.QQ[currentQQID].isLogin = 2;
                     return;
                 case -10000 : return log(currentQQID, '获取说说 ' +　targetQQ + " : 操作过于频繁");
             }
@@ -436,7 +376,8 @@ function getShuoShuoMsgList(targetQQ, currentQQID, shuoNum, startNum){
             if(msgListJson.code !== 0) debugger;
 
             // 就算返回代码正确, list 仍然可能没有被定义
-            if(!msgListJson.msglist) return;
+            // 同时数据库还有个要求... 如果数组为空也会报错
+            if(!msgListJson.msglist || msgListJson.msglist.length === 0) return;
 
             log(currentQQID, "说说消息" +　targetQQ + " : 获取成功, 从第 " + startNum + " 条开始, 留言板的信息共有 " + msgListJson.total + " 条");
 
@@ -448,12 +389,13 @@ function getShuoShuoMsgList(targetQQ, currentQQID, shuoNum, startNum){
                 }
             }
             
+            // 将返回的说说的对象数组添加到数据库中
+            db.collection("ShuoShuo").insert(msgListJson.msglist, function(err){
+                if(err) throw err;
+                log(currentQQID, msgListJson.msglist.length + " 条说说, 已加入数据库!")
+            })
+            
             msgListJson.msglist.forEach(function(item, index){
-
-                // 以下几行用于展示说说, 并没有什么实际用处
-                // console.log("说说: " + (item.content === '' ? "*该用户在转发时保持了沉默*" : item.content))
-                // if(item.rt_con){ console.log("   By 转发说说 : " + item.rt_con.content) }
-                // console.log('\n')
                 
                 // 通过评论内容 获取好友的信息
                 // 如果有评论的话, 那么将评论列表里的所有人的 QQ 号都再进行深入爬取
@@ -473,77 +415,23 @@ function getShuoShuoMsgList(targetQQ, currentQQID, shuoNum, startNum){
 }
 
 
-
-/**
- * 获取最近来访的好友 注意: 只有真正的QQ好友才允许请求到信息...所以好像并没有什么卵用...
- * 这函数在请求完以后会把最近访问的 QQ 号 push 到全局变量 QQNumbers 里面
- *
- * Warning: 天坑注意!!!
- * 
- * @param  {QQ} targetQQ  目标人物的QQ号
- * @param  {QQ} currentQQID 当前爬虫正在使用的QQ号的ID
- */
-function getRecentFriends(targetQQ, currentQQID){
-
-    request.get('http://r.qzone.qq.com/cgi-bin/main_page_cgi')
-        .set(HTTPheaders)
-        .set({Cookie : json2cookies(jsonCookie[currentQQID])})
-        .query({
-            uin     : targetQQ,
-            param   : '3_' + targetQQ + '_0|8_8_' + config.QQ[currentQQID].userQQ + '_0_1_0_0_1|15|16',
-            g_tk    : getGTK(jsonCookie[currentQQID].p_skey)
-        })
-        .end(function (err, data) {
-            if(err) throw err; // 获取主页面失败
-
-            var seeJson = JSON.parse(data.text.replace(/^_Callback\(/, '').replace(/\)/, ''));
-
-            seeJson.data.module_3.data.items.forEach(function(item, index){
-                QQNumbers.push(item.uin);
-                console.log(item.uin)
-            })
-
-        })
-
-}
-
 /**
  * 获取QQ空间验证手段之一的 G_TK
  * G_TK 的生成函数如下所示 来自 http://cm.qzonestyle.gtimg.cn/ac/qzone/qzfl/qzfl_v8_2.1.45.js
  * G_TK 应该附在 GET 请求中一起发送
  * 
- * @param  {string} p_skey cookie 里的 p_skey
+ * @param  {QQ} currentQQID 当前爬虫正在使用的QQ号的ID
  * @return {string}        生成的 G_TK 附在 GET 请求中一起发送
  */
-function getGTK(p_skey){
+function getGTK(currentQQID){
+
+    var key = jsonCookie[currentQQID].p_skey || jsonCookie[currentQQID].skey;
+
     var hash = 5381;
-    for (var i = 0, len = p_skey.length; i < len; ++i) hash += (hash << 5) + p_skey.charCodeAt(i);
+    for (var i = 0, len = key.length; i < len; ++i) hash += (hash << 5) + key.charCodeAt(i);
     return hash & 2147483647
 }
 
-
-/**
- * 将 string 格式的内容添加到全局变量 jsonCookie
- * 
- * @param  {string} str 需要被转换的对象
- * @param  {QQ} currentQQID 当前爬虫正在使用的QQ号的ID
- */
-function out2jsoncookies(str, currentQQID){
-
-    // 先清空当前的 jsonCookie
-    jsonCookie[currentQQID] = {};
-
-    // 输入格式判断
-    if(typeof str !== 'string') throw new Error("未传入有效数据!");
-
-    var pattern = /<Cookie (.*?)=(.*?) for /g;
-
-    var match;
-
-    while((match = pattern.exec(str)) !== null){
-        jsonCookie[currentQQID][match[1]] = match[2];
-    }
-}
 
 /**
  * 将 json 形式的 cookie 值转换为传输形式的 cookie 值
@@ -583,6 +471,7 @@ function isFreshman(QQ){
  * @param  {str} msg         消息内容
  */
 function log(currentQQID, msg){
+    if(flags.verifyFlag) return;  // 如果正在输入验证码, 就不显示日志了
     console.log("QQ ID " + currentQQID +" " + msg);
 }
 
@@ -597,10 +486,14 @@ function log(currentQQID, msg){
 
     7月13日 购买
         3317753772----orii02058  已冻结
-        3332755205----   
+        3332755205----xvee22634  已冻结
         3332784766----kasi99753  已冻结
     7月14日 购买
-        2170576112----wcresdjh 
+        2170576112----wcresdjh   已冻结
+    7月16日 购买
+        1852905648----rnpddq 
+        2027708698----uiut0g
+        2029725460----ipvcxhdzsu
 
 
 部分数据的请求地址: http://r.qzone.qq.com/cgi-bin/main_page_cgi?uin=616772663&param=3_616772663_0%7C8_8_3095623630_0_1_0_0_1%7C15%7C16&g_tk=320979203
