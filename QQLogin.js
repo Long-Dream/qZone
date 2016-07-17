@@ -4,6 +4,7 @@ var cp         = require('child_process')
 
 var QQSafe     = require('./QzoneLogin_lib.js')
 var main       = require('./app.js')
+var config     = require("./config.js")
 
 
 
@@ -30,7 +31,7 @@ function getLoginCookie(currentQQID){
                 pgv_info        : "ssid=" + getPgv_1('s'),
                 pgv_pvi         : getPgv_2(),
                 pgv_si          : getPgv_2('s'),
-                ptui_loginuin   : main.config.QQ[currentQQID].userQQ
+                ptui_loginuin   : config.QQ[currentQQID].userQQ
             }
 
             addCookie(otherCookie, currentQQID)
@@ -75,7 +76,7 @@ function getVerifyMsg(currentQQID){
             regmaster   : '',
             pt_tea      : 2,
             pt_vcode    : 1,
-            uin         : main.config.QQ[currentQQID].userQQ,
+            uin         : config.QQ[currentQQID].userQQ,
             appid       : 549000912,
             js_ver      : 10166,
             js_type     : 1,
@@ -133,7 +134,7 @@ function getVerifyMoreMsg(currentQQID, cap_cd){
         .set(main.HTTPheaders)
         .query({
             clientype   : 2,
-            uin         : main.config.QQ[currentQQID].userQQ,
+            uin         : config.QQ[currentQQID].userQQ,
             aid         : 549000912,
             pt_style    : 40
         })
@@ -171,7 +172,7 @@ function getVerifyImg(currentQQID, cap_cd, g_vsig){
         .set(main.HTTPheaders)
         .query({
             clientype   : 2,
-            uin         : main.config.QQ[currentQQID].userQQ,
+            uin         : config.QQ[currentQQID].userQQ,
             aid         : 549000912,
             pt_style    : 40,
             rand        : Math.random(),
@@ -189,8 +190,10 @@ function getVerifyImg(currentQQID, cap_cd, g_vsig){
                 // 如果有, 就下次再说!
                 // 当然, 前提是过来的是别的请求
                 
-                if(main.flags.verifyFlag > 0 &&　main.flags.verifyNum　!== currentQQID) 
+                if(main.flags.verifyFlag > 0 &&　main.flags.verifyNum　!== currentQQID) {
+                    config.QQ[currentQQID].isLogin = 0;
                     return log(currentQQID, "正在等待当前验证码验证结束!")
+                }
 
                 // 此时禁止所有请求
                 main.flags.verifyFlag += 1;
@@ -246,7 +249,7 @@ function getVerifyResult(currentQQID, cap_cd, g_vsig, ans){
         .set(main.HTTPheaders)
         .query({
             clientype   : 2,
-            uin         : main.config.QQ[currentQQID].userQQ,
+            uin         : config.QQ[currentQQID].userQQ,
             aid         : 549000912,
             pt_style    : 40,
             rand        : Math.random(),
@@ -291,7 +294,7 @@ function getVerifyResult(currentQQID, cap_cd, g_vsig, ans){
  *
  * 实现登录模块, 该模块需要先进行验证码的验证, 并获取两个关键的字段 verifycode 和 pt_verifysession_v1
  * 应该使用 query 的字符串形式, 以做到防止 * 被转义
- * 如果登录成功, 就将 main.config 里面的 isLogin 设为1
+ * 如果登录成功, 就将 config 里面的 isLogin 设为1
  *
  * 注意: 参数中, 如果需要验证码, pt_vcode_v1 的值就为 1 ; 如果不需要验证码, pt_vcode_v1 的值就为 0
  * 
@@ -310,7 +313,7 @@ function QQTryLogin(currentQQID, verifycode, pt_verifysession_v1){
         .set({Cookie : main.json2cookies(main.jsonCookie[currentQQID])})
         .set(main.HTTPheaders)
         .query({
-            u               : main.config.QQ[currentQQID].userQQ,
+            u               : config.QQ[currentQQID].userQQ,
             pt_vcode_v1     : pt_vcode_v1,
             pt_randsalt     : 2,
             ptredirect      : 0,
@@ -349,6 +352,13 @@ function QQTryLogin(currentQQID, verifycode, pt_verifysession_v1){
                     log(currentQQID, "登录成功")
 
                     getSuccessCookies(currentQQID, verifyArr[2], pt_vcode_v1);
+                } else if (verifyArr[0] === '3') {
+                    log(currentQQID, "您输入的帐号或密码不正确, 请将账号删除后重新录入账号和密码");
+                    if(pt_verifysession_v1){
+                        main.flags.verifyFlag -= 1;
+                        main.flags.verifyNum = -1;
+                    }
+                    config.QQ[currentQQID].isLogin = 4;
                 } else {
                     log(currentQQID, "登录失败!");
                     console.log(text);
@@ -361,7 +371,7 @@ function QQTryLogin(currentQQID, verifycode, pt_verifysession_v1){
                         main.flags.verifyNum = -1;
                     }
                     // 使 账号的 isLogin 定为 2, 视为已冻结
-                    main.config.QQ[currentQQID].isLogin = 2;
+                    config.QQ[currentQQID].isLogin = 2;
                 }
 
             })
@@ -404,7 +414,7 @@ function getSuccessCookies(currentQQID, url, isVerify){
             }
 
             // 使 账号的 isLogin 定为 1, 视为已成功登录
-            main.config.QQ[currentQQID].isLogin = 1;
+            config.QQ[currentQQID].isLogin = 1;
 
         })
 }
@@ -431,8 +441,8 @@ function getSuccessCookies(currentQQID, url, isVerify){
  */
 function getP(currentQQID, verifycode){
 
-    var password = main.config.QQ[currentQQID].password;
-    var salt     = QQSafe.uin2hex(main.config.QQ[currentQQID].userQQ);
+    var password = config.QQ[currentQQID].password;
+    var salt     = QQSafe.uin2hex(config.QQ[currentQQID].userQQ);
 
     /**
      * QQSafe.getEncryption 是腾讯自家的计算字段 p 的方法

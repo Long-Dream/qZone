@@ -1,21 +1,19 @@
-var request    = require("superagent");
-var cheerio    = require("cheerio");
-var fs         = require("fs")
+var request      = require("superagent");
+var cheerio      = require("cheerio");
+var fs           = require("fs")
+var EventEmitter = require('events').EventEmitter; 
 
-var db         = require("./db/db.js")
+var QQSafe       = require('./QzoneLogin_lib.js')
+var config       = require("./config.js")
 
-var QQSafe     = require('./QzoneLogin_lib.js')
-var config     = require("./config.js")
-var db         = require("./db/db.js");
+var jsonCookie   = [];    // 以 JSON 形式保存的当前cookie值
 
-var jsonCookie = [];    // 以 JSON 形式保存的当前cookie值
+var QQNumbers    = [];    // 收集到的QQ号码, 待爬取
+var QQdone       = [];    // 收集到的QQ号码, 已爬取
 
-var QQNumbers  = [];    // 收集到的QQ号码, 待爬取
-var QQdone     = [];    // 收集到的QQ号码, 已爬取
+var QQEvents     = {};    // 事件列表, 每个元素都是对象, 有三个属性, obj 是一些数据, event 是事件对象, count 是计数君, 默认为 3
 
-var QQtorrent  = [470501491];    // 种子 QQ 号, 星星之火, 可以燎原
-
-
+var QQtorrent    = [470501491];    // 种子 QQ 号, 星星之火, 可以燎原
 
 var flags = {
 
@@ -24,10 +22,13 @@ var flags = {
     verifyFlag : 0,
 
     // 当前正在进行的请求的编号
-    verifyNum : -1
+    verifyNum : -1,
+
+    // 是否已经准备好的 flag  目前准备好的条件是, 已从数据库中读取到 QQdone 的数据,  已从数据库中读取到 QQNumbers 的数据
+    // 0 为已准备好, 大于 0 为未准备好
+    readyFlag : 2
 }
    
-
 // 通用的HTTP请求头(不含cookie)
 var HTTPheaders = {
     // 'Accept'            : 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
@@ -39,7 +40,7 @@ var HTTPheaders = {
     'User-Agent'        : 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Ubuntu Chromium/51.0.2704.79 Chrome/51.0.2704.79 Safari/537.36',
     'Upgrade-Insecure-Requests'     : '1',   
     'Pragma'            : 'no-cache',
-    'Referer' : 'http://ctc.qzs.qq.com/qzone/profile/index.html'
+    'Referer'           : 'http://ctc.qzs.qq.com/qzone/profile/index.html'
 }
 
 /**
@@ -50,19 +51,19 @@ var HTTPheaders = {
 module.exports = {
     jsonCookie      : jsonCookie,
     flags           : flags,
-    config          : config,
     HTTPheaders     : HTTPheaders,
-    json2cookies    : json2cookies
+    json2cookies    : json2cookies,
+    QQdone          : QQdone,
+    QQNumbers       : QQNumbers
 }
 
-
 var QQLogin    = require('./QQLogin.js')
+var db         = require("./db/db.js");
 // QQLogin(0)
 
 
 // Panzer Vor !!
 main();
-
 
 /**
  * 主函数, 进行爬虫程序的调度
@@ -72,19 +73,29 @@ function main(){
     // 每隔一段时间执行一次, 以防被 QQ空间 反爬程序盯上
     mainStep();
 
+    // 定时存储所有 QQNumbers
+    setTimeout(saveQQNumbers, config.saveQQNumbersTime);
+
     /**
      * 主函数的单步函数
      */
     function mainStep(){
 
         // 如果正在输入验证码, 则延迟执行请求
-        if(flags.verifyFlag){
-            // console.log("等待输入验证码ing....")
+        // 如果没有准备好, 也延迟执行请求
+        if(flags.verifyFlag || flags.readyFlag){
             setTimeout(function(){mainStep();}, config.timeout);
             return;
         }
 
         console.log("QQNumbers 内有 " + QQNumbers.length + " 个 QQ 号, " + " QQdone 内有 " + QQdone.length + " 个 QQ 号.")
+
+        // if(QQdone.length > 400){
+        //     setTimeout(function(){
+        //         debugger;
+        //     }, 15000)
+        //     return;
+        // }
 
         // 检查当前所有的QQ号是否已登录, 若没有登录, 就进行登录
         var QQlist = checkQQ();
@@ -95,23 +106,29 @@ function main(){
             // 先检查种子 QQ 号
             if(QQtorrent.length > 0){
                 var fetchNum = QQtorrent.pop();
-                QQdone.push(fetchNum);
-                console.log("QQ 第 " + item + " 号, 开始爬取种子 QQ 号 " + fetchNum)
-                fetchData(fetchNum, item);
-                return;
+
+                if(isOldFreshman(fetchNum)){
+                    QQdone.push(fetchNum);
+                    console.log("QQ 第 " + item + " 号, 开始爬取种子 QQ 号 " + fetchNum)
+                    fetchData(fetchNum, item);
+                    return;
+                }
             }
 
             // 再检查队列中的 QQ 号
             if(QQNumbers.length > 0){
-                var fetchNum = QQNumbers.pop();
-                QQdone.push(fetchNum);
-                console.log("QQ 第 " + item + " 号, 开始爬取 QQ 号 " + fetchNum)
-                fetchData(fetchNum, item);
-                return;
+
+                var fetchNum;
+
+                while(isOldFreshman(fetchNum = QQNumbers.pop())){
+                    QQdone.push(fetchNum);
+                    console.log("QQ 第 " + item + " 号, 开始爬取 QQ 号 " + fetchNum)
+                    fetchData(fetchNum, item);
+                    return;
+                }
             }
 
-            console.log("星星之火即将熄灭!")
-
+            console.log("星星之火即将熄灭")
         })
 
         // 进行链式反应
@@ -157,6 +174,9 @@ function main(){
      */
     function fetchData(targetQQ, currentQQID){
 
+        // 订阅事件
+        emitQQ(targetQQ, currentQQID)
+
         // 个人档信息
         getUserInfoAll(targetQQ, currentQQID);
 
@@ -165,6 +185,88 @@ function main(){
 
         // 说说信息
         getShuoShuoMsgList(targetQQ, currentQQID, config.shuoNum)
+    }
+
+
+    /**
+     * 对每个目标 QQ 进行事件的订阅, 正常的抓取过程中, 每个目标 QQ 应该发布三次事件
+     * 当三次事件全部接收到后, 将目标 QQ 存入数据库
+     * 然后为了节省内存, 删除订阅的事件
+     * 
+     * @param  {QQ} targetQQ  目标人物的QQ号
+     */
+    function emitQQ(targetQQ){
+
+        QQEvents[targetQQ] = {};
+
+        // 计数变量是 3 , 原因是会对三个方面进行爬取, 分别是 留言板 说说 个人档 
+        QQEvents[targetQQ].count = 3;
+
+        QQEvents[targetQQ].obj = {
+            uin             : targetQQ,
+            msgBoardNum     : undefined,
+            shuoshuoNum     : undefined,
+            userInfoState   : undefined
+        }
+
+        // 使 EventEmitter 对象实例化
+        QQEvents[targetQQ].event = new EventEmitter();
+
+        QQEvents[targetQQ].event.on("userInfo", function(data){
+            QQEvents[targetQQ].count --;
+            QQEvents[targetQQ].obj.userInfoState = data;
+            checkEventCount(targetQQ);
+        })
+
+        QQEvents[targetQQ].event.on("msgBoard", function(data){
+            QQEvents[targetQQ].count --;
+            QQEvents[targetQQ].obj.msgBoardNum = data;
+            checkEventCount(targetQQ);
+        })
+
+        QQEvents[targetQQ].event.on("shuoshuo", function(data){
+            QQEvents[targetQQ].count --;
+            QQEvents[targetQQ].obj.shuoshuoNum = data;
+            checkEventCount(targetQQ);
+        })
+
+    }
+
+    /**
+     * 检查接收到的事件数是否达到预订目标
+     * 如果达到了, 就将其存入数据库, 并在内存中将其删除
+     * 
+     * @param  {QQ} targetQQ  目标人物的QQ号
+     */
+    function checkEventCount(targetQQ){
+
+        // 如果计数变量还有值就 return
+        if(QQEvents[targetQQ].count) return;
+
+        db.collection("QQdone").insert(QQEvents[targetQQ].obj, function(err, data){
+            if(err) throw err;      // QQdone 数据库保存失败
+            console.log("一条 QQdone 的数据已保存成功");
+            
+            // 此处设置延时删除, 是因为可能在 3 次事件都接受后, 后续请求还会发送请求
+            setTimeout(function(){
+                delete QQEvents[targetQQ];
+            }, 2 * config.getTimeout)
+        })
+    }
+
+    /**
+     * 定时将 QQNumbers 存入数据库中, 方便下次程序运行的时候调用
+     */
+    function saveQQNumbers(){
+
+        var obj = {name : "QQNumbers", QQNumbers : QQNumbers};
+
+        db.collection("QQNumbers").update({name : "QQNumbers"}, {"$set" : {"QQNumbers" : QQNumbers}}, true, function(err){
+            if(err) throw err;
+            console.log("Success!")
+
+            setTimeout(saveQQNumbers, config.saveQQNumbersTime);
+        })
     }
 }
 
@@ -180,6 +282,7 @@ function getUserInfoAll(targetQQ, currentQQID){
     request.get('http://base.s21.qzone.qq.com/cgi-bin/user/cgi_userinfo_get_all')
         .set(HTTPheaders)
         .set({Cookie : json2cookies(jsonCookie[currentQQID])})
+        .timeout(config.getTimeout)
         .query({
             uin     : targetQQ,
             vuin    : config.QQ[currentQQID].userQQ,
@@ -189,7 +292,13 @@ function getUserInfoAll(targetQQ, currentQQID){
         })
         .end(function(err, data){
 
-            if(err) throw err;      // 获取个人档信息失败
+            if(err) {
+                if(err.timeout) {
+                    log(currentQQID, "个人档请求超时"); 
+                    getUserInfoAll(targetQQ, currentQQID);
+                    return;}
+                throw err; // 获取个人档信息失败
+            }      
 
             var text = '';
             data.on('data', function(chunk){
@@ -197,17 +306,26 @@ function getUserInfoAll(targetQQ, currentQQID){
             })
             data.on('end', function(chunk){
 
-                var userInfoJson = JSON.parse(text.replace(/^_Callback\(/, '').replace(/\);$/, ''));
+                var userInfoJson = JSON.parse(text.replace(/^_Callback\(/, '').replace(/\);$/, '').replace(/([^\\])\\([^\\"nrt])/g, "$1$2"));
 
                 // 权限检查 以及 登录检查
                 switch(userInfoJson.code){
-                    case -4009  : return log(currentQQID, '获取个人档 ' +　targetQQ + " : 没有权限");
+                    case -4009  : 
+                        log(currentQQID, '获取个人档 ' +　targetQQ + " : 没有权限");
+                        QQEvents[targetQQ].event.emit("userInfo", "没有权限");
+                        return;
                 }
 
                 // 返回消息代码 二次确认
-                if(userInfoJson.code !==  0) {debugger;return;}
+                if(userInfoJson.code !==  0) {
+                    log(currentQQID, '获取个人档 ' +　targetQQ + " : 未知原因");
+                    QQEvents[targetQQ].event.emit("userInfo", "未知原因");
+                    debugger;return;
+                }
 
                 // log(currentQQID, "已获得 " + targetQQ + " 的个人档信息!");
+
+                QQEvents[targetQQ].event.emit("userInfo", "Success!");
 
                 // 将返回的个人档的对象添加到数据库中
                 db.collection("UserInfo").insert(userInfoJson.data, function(err){
@@ -244,6 +362,7 @@ function getMsgBoard(targetQQ, currentQQID, boardNum, startNum){
     request.get('https://h5.qzone.qq.com/proxy/domain/m.qzone.qq.com/cgi-bin/new/get_msgb')
         .set(HTTPheaders)
         .set({Cookie : json2cookies(jsonCookie[currentQQID])})
+        .timeout(config.getTimeout)
         .query({
             uin         : config.QQ[currentQQID].userQQ,
             hostUin     : targetQQ,
@@ -255,48 +374,96 @@ function getMsgBoard(targetQQ, currentQQID, boardNum, startNum){
             g_tk        : getGTK(currentQQID)
         })
         .end(function(err, data){
-            if(err) throw err;      // 获取留言板消息失败
+            
+            if(err) {
+                if(err.timeout) {
+                    log(currentQQID, "留言板请求超时"); 
+                    getMsgBoard(targetQQ, currentQQID, boardNum, startNum);
+                    return;
+                }
+                throw err; // 获取留言板信息失败
+            }      
+
             var text = '';
             data.on('data', function(chunk){
                 text += chunk;
             })
             data.on('end', function(chunk){
 
-                var boardJson = JSON.parse(text.replace(/^_Callback\(/, '').replace(/\);$/, ''));
+                var boardJson = JSON.parse(text.replace(/^_Callback\(/, '').replace(/\);$/, '').replace(/([^\\])\\([^\\"nrt])/g, "$1$2"));
 
                 // 权限检查 以及 登录检查
                 switch(boardJson.code){
-                    case -4009  : return log(currentQQID, '获取留言板 ' +　targetQQ + " : 没有权限");
+                    case -4009  : 
+                        log(currentQQID, '获取留言板 ' +　targetQQ + " : 没有权限");
+                        QQEvents[targetQQ].event.emit("msgBoard", "没有权限");
+                        return;
                     case -4001  : 
                         log(currentQQID, '获取留言板 ' +　targetQQ + " : 没有登录");
                         // 这是一个悲伤的事实... 在爬取过程中如果登录被退出, 那就是意味着账号已被冻结
                         config.QQ[currentQQID].isLogin = 2;
+                        QQEvents[targetQQ].event.emit("msgBoard", "没有登录");
                         return;
-                    case  1003  : return log(currentQQID, '获取留言板 ' +　targetQQ + " : 操作过于频繁");
-                    case -5007  : return log(currentQQID, '获取留言板 ' +　targetQQ + " : 系统繁忙1");
-                    case -5008  : return log(currentQQID, '获取留言板 ' +　targetQQ + " : 系统繁忙2");
-                    case -30002 : return log(currentQQID, '获取留言板 ' +　targetQQ + " : 系统繁忙3");
-                    case -4013  : return log(currentQQID, '获取留言板 ' +　targetQQ + " : 空间未开通");
-                    case -4014  : return log(currentQQID, '获取留言板 ' +　targetQQ + " : 空间被封闭");
+                    case  1003  : 
+                        log(currentQQID, '获取留言板 ' +　targetQQ + " : 操作过于频繁");
+                        QQEvents[targetQQ].event.emit("msgBoard", "操作过于频繁");
+                        config.QQ[currentQQID].isLogin = 5;
+                        return
+                    case -5007  : 
+                        log(currentQQID, '获取留言板 ' +　targetQQ + " : 系统繁忙1");
+                        QQEvents[targetQQ].event.emit("msgBoard", "系统繁忙1");
+                        return
+                    case -5008  : 
+                        log(currentQQID, '获取留言板 ' +　targetQQ + " : 系统繁忙2");
+                        QQEvents[targetQQ].event.emit("msgBoard", "系统繁忙2");
+                        return
+                    case -30002 : 
+                        log(currentQQID, '获取留言板 ' +　targetQQ + " : 系统繁忙3");
+                        QQEvents[targetQQ].event.emit("msgBoard", "系统繁忙3");
+                        return
+                    case -4013  : 
+                        log(currentQQID, '获取留言板 ' +　targetQQ + " : 空间未开通");
+                        QQEvents[targetQQ].event.emit("msgBoard", "空间未开通");
+                        return
+                    case -4014  : 
+                        log(currentQQID, '获取留言板 ' +　targetQQ + " : 空间被封闭");
+                        QQEvents[targetQQ].event.emit("msgBoard", "空间被封闭");
+                        return
                 }
 
                 // 返回消息代码 二次确认
-                if(boardJson.code !==  0) {debugger;return;}
+                if(boardJson.code !==  0) {
+                    log(currentQQID, '获取留言板 ' +　targetQQ + " : 未知原因");
+                    QQEvents[targetQQ].event.emit("msgBoard", "未知原因");
+                    debugger;return;
+                }
                 // if(boardJson.code !==  0) throw new Error("获取留言板, 收到未知代码")
 
                 // 就算返回代码正确, list 仍然可能没有被定义
                 if(!boardJson.data.commentList || boardJson.data.commentList.length === 0) return;
 
                 // 留言板有一种特殊情况, 那就是主人设置了 serect, 那么就也不行
-                if(boardJson.data.commentList[0].secret === 1) return log(currentQQID, '获取留言板 ' +　targetQQ + " : 主人设置其为隐私");
+                // 但是 data 还是有的, 所以可以获取 留言板的总数
+                if(boardJson.data.commentList[0].secret === 1) {
+                    log(currentQQID, '获取留言板 ' +　targetQQ + " : 主人设置其为隐私");
+                    QQEvents[targetQQ].event.emit("msgBoard", boardJson.data.total);
+                    return;
+                }
 
                 log(currentQQID, "留言板消息" +　targetQQ + " : 获取成功, 从第 " + startNum + " 条开始, 留言板的信息共有 " + boardJson.data.total + " 条");
 
                 // 如果 startNum 为 0, 就说明是首次抓取该 QQ 号的留言板
                 // 那就对留言板的数量进行分析 并对每一页都发出抓取信号
-                if(startNum === 0 && boardJson.data.total > boardNum){
-                    for(var i = boardNum; i < Math.min(boardJson.data.total, config.boardMax); i += boardNum){
-                        getMsgBoard(targetQQ, currentQQID, boardNum, i)
+                // 同时也可以对数据库发出信号, 因为只有首次会触发所以每个 targetQQ 只会触发一次
+                if(startNum === 0){
+
+                    // 触发事件
+                    QQEvents[targetQQ].event.emit("msgBoard", boardJson.data.total);
+
+                    if(boardJson.data.total > boardNum){
+                        for(var i = boardNum; i < Math.min(boardJson.data.total, config.boardMax); i += boardNum){
+                            getMsgBoard(targetQQ, currentQQID, boardNum, i)
+                        }
                     }
                 }
 
@@ -306,19 +473,24 @@ function getMsgBoard(targetQQ, currentQQID, boardNum, startNum){
                     log(currentQQID, boardJson.data.commentList.length + " 条留言板消息, 已加入数据库!")
                 })
 
-                boardJson.data.commentList.forEach(function(item, index){
+                // 如果 QQNumbers 里的数据 大于 1000, 就不用存了
+                if(QQNumbers.length < 1000){
+                    boardJson.data.commentList.forEach(function(item, index){
 
-                    // 检查 item.uin 是否存在 以及 是否为数
-                    if(typeof item.uin !== 'number') return;
+                        // 检查 item.uin 是否存在 以及 是否为数
+                        if(typeof item.uin !== 'number') return;
 
-                    // 检查是否已经爬过
-                    // 如果是小鲜肉, 就将其深入
-                    // TODO : 后期程序成型后, 将小鲜肉立刻深入改为排队站好逐个深入
-                    if(isFreshman(item.uin)){
-                        QQNumbers.push(item.uin);
-                        // log(currentQQID, "当前留言板爬取 QQ : " + targetQQ + ", 已将 QQ " + item.uin + " 加入队列")
-                    }
-                })
+                        // 检查是否已经爬过
+                        // 如果是小鲜肉, 就将其深入
+                        // TODO : 后期程序成型后, 将小鲜肉立刻深入改为排队站好逐个深入
+                        if(isFreshman(item.uin)){
+                            QQNumbers.push(item.uin);
+                            // log(currentQQID, "当前留言板爬取 QQ : " + targetQQ + ", 已将 QQ " + item.uin + " 加入队列")
+                        }
+                    })
+                }
+
+
             })
         })
 }
@@ -338,6 +510,7 @@ function getShuoShuoMsgList(targetQQ, currentQQID, shuoNum, startNum){
     request.get("https://h5.qzone.qq.com/proxy/domain/taotao.qq.com/cgi-bin/emotion_cgi_msglist_v6")
         .set(HTTPheaders)
         .set({Cookie : json2cookies(jsonCookie[currentQQID])})
+        .timeout(config.getTimeout)
         .query({
             uin         : targetQQ,
             inCharset   : 'utf-8',
@@ -354,26 +527,46 @@ function getShuoShuoMsgList(targetQQ, currentQQID, shuoNum, startNum){
             g_tk        : getGTK(currentQQID)
         })
         .end(function(err, data){
-            if(err) throw err;      // 获取说说消息失败
+            
+            if(err) {
+                if(err.timeout) {
+                    log(currentQQID, "说说请求超时");
+                    getShuoShuoMsgList(targetQQ, currentQQID, shuoNum, startNum);
+                    return;
+                }
+                throw err; // 获取说说信息失败
+            }      
 
             // console.log(data.text)
 
-            var msgListJson = JSON.parse(data.text.replace(/^_Callback\(/, '').replace(/\);$/, ''));
+            var msgListJson = JSON.parse(data.text.replace(/^_Callback\(/, '').replace(/\);$/, '').replace(/([^\\])\\([^\\"nrt])/g, "$1$2"));
 
             // 权限检查 以及 登录检查
             switch(msgListJson.code){
-                case -10031 : return log(currentQQID, '获取说说 ' +　targetQQ + " : 没有权限");
+                case -10031 : 
+                    log(currentQQID, '获取说说 ' +　targetQQ + " : 没有权限");
+                    QQEvents[targetQQ].event.emit("shuoshuo", "没有权限");
+                    return;
                 case -3000  : 
                     log(currentQQID, '获取说说 ' +　targetQQ + " : 没有登录");
                     // 这是一个悲伤的事实... 在爬取过程中如果登录被退出, 那就是意味着账号已被冻结
                     config.QQ[currentQQID].isLogin = 2;
+                    QQEvents[targetQQ].event.emit("shuoshuo", "没有登录");
                     return;
-                case -10000 : return log(currentQQID, '获取说说 ' +　targetQQ + " : 操作过于频繁");
+                case -10000 : 
+                    log(currentQQID, '获取说说 ' +　targetQQ + " : 操作过于频繁");
+                    config.QQ[currentQQID].isLogin = 5;
+                    QQEvents[targetQQ].event.emit("shuoshuo", "操作过于频繁");
+                    return;
             }
 
             // 返回消息代码 二次确认
             // if(msgListJson.code !== 0) throw new Error("获取说说消息, 收到未知代码")
-            if(msgListJson.code !== 0) debugger;
+            if(msgListJson.code !== 0) {
+                log(currentQQID, '获取说说 ' +　targetQQ + " : 未知原因");
+                QQEvents[targetQQ].event.emit("shuoshuo", "未知原因");
+                debugger;return;
+            }
 
             // 就算返回代码正确, list 仍然可能没有被定义
             // 同时数据库还有个要求... 如果数组为空也会报错
@@ -383,9 +576,15 @@ function getShuoShuoMsgList(targetQQ, currentQQID, shuoNum, startNum){
 
             // 如果 startNum 为 0, 就说明是首次抓取该 QQ 号的说说
             // 那就对说说的数量进行分析 并对每一页都发出抓取信号
-            if(startNum === 0 && msgListJson.total > shuoNum){
-                for(var i = shuoNum; i < Math.min(msgListJson.total, config.shuoMax); i += shuoNum){
-                    getShuoShuoMsgList(targetQQ, currentQQID, shuoNum, i)
+            if(startNum === 0){
+
+                // 发布事件
+                QQEvents[targetQQ].event.emit("shuoshuo", msgListJson.total);
+
+                if(msgListJson.total > shuoNum){
+                    for(var i = shuoNum; i < Math.min(msgListJson.total, config.shuoMax); i += shuoNum){
+                        getShuoShuoMsgList(targetQQ, currentQQID, shuoNum, i)
+                    }
                 }
             }
             
@@ -394,25 +593,31 @@ function getShuoShuoMsgList(targetQQ, currentQQID, shuoNum, startNum){
                 if(err) throw err;
                 log(currentQQID, msgListJson.msglist.length + " 条说说, 已加入数据库!")
             })
-            
-            msgListJson.msglist.forEach(function(item, index){
-                
-                // 通过评论内容 获取好友的信息
-                // 如果有评论的话, 那么将评论列表里的所有人的 QQ 号都再进行深入爬取
-                if(item.rtlist){
-                    item.rtlist.forEach(function(replyItem, replyIndex){
 
-                        // 将爬到的 QQ 加入到队列中
-                        if(typeof replyItem.uin === 'number' && isFreshman(replyItem.uin)){
-                            QQNumbers.push(replyItem.uin);
-                            // log(currentQQID, "当前说说爬取 QQ : " + targetQQ + ", 已将 QQ " + replyItem.uin + " 加入队列")
-                        }
+            // 如果 QQNumbers 里的数据 大于 1000, 就不用存了
+            if(QQNumbers.length < 1000){
+                msgListJson.msglist.forEach(function(item, index){
+                    
+                    // 通过评论内容 获取好友的信息
+                    // 如果有评论的话, 那么将评论列表里的所有人的 QQ 号都再进行深入爬取
+                    if(item.rtlist){
+                        item.rtlist.forEach(function(replyItem, replyIndex){
 
-                    })
-                }
-            })
+                            // 将爬到的 QQ 加入到队列中
+                            if(typeof replyItem.uin === 'number' && isFreshman(replyItem.uin)){
+                                QQNumbers.push(replyItem.uin);
+                                // log(currentQQID, "当前说说爬取 QQ : " + targetQQ + ", 已将 QQ " + replyItem.uin + " 加入队列")
+                            }
+
+                        })
+                    }
+                })
+            }
+        
         })
 }
+
+
 
 
 /**
@@ -455,13 +660,23 @@ function json2cookies(json){
 
 
 /**
- * 判断是否已经被爬过
+ * 判断是否已经将要被爬过
  * 
  * @param  {QQ}  QQ 所要进行检查的QQ号
  * @return {Boolean}    1 代表还没有被爬过   0 代表已经不是小鲜肉了
  */
 function isFreshman(QQ){
     return (QQNumbers.indexOf(QQ) === -1 && QQdone.indexOf(QQ) === -1);
+}
+
+/**
+ * 判断是否已经被爬过
+ * 
+ * @param  {QQ}  QQ 所要进行检查的QQ号
+ * @return {Boolean}    1 代表还没有被爬过   0 代表已经不是小鲜肉了
+ */
+function isOldFreshman(QQ){
+    return QQdone.indexOf(QQ) === -1
 }
 
 /**
@@ -491,9 +706,12 @@ function log(currentQQID, msg){
     7月14日 购买
         2170576112----wcresdjh   已冻结
     7月16日 购买
-        1852905648----rnpddq 
-        2027708698----uiut0g
-        2029725460----ipvcxhdzsu
+        1852905648----rnpddq     已冻结
+        2027708698----uiut0g     已冻结
+        2029725460----ipvcxhdzsu 已冻结
+    7月17日 购买
+        2332952069----gsp142     已冻结
+        2308583910----exehg2     已冻结
 
 
 部分数据的请求地址: http://r.qzone.qq.com/cgi-bin/main_page_cgi?uin=616772663&param=3_616772663_0%7C8_8_3095623630_0_1_0_0_1%7C15%7C16&g_tk=320979203
