@@ -1,9 +1,7 @@
 var request      = require("superagent");
-var cheerio      = require("cheerio");
 var fs           = require("fs")
 var EventEmitter = require('events').EventEmitter; 
 
-var QQSafe       = require('./QzoneLogin_lib.js')
 var config       = require("./config.js")
 
 var jsonCookie   = [];    // 以 JSON 形式保存的当前cookie值
@@ -59,8 +57,6 @@ module.exports = {
 
 var QQLogin    = require('./QQLogin.js')
 var db         = require("./db/db.js");
-// QQLogin(0)
-
 
 // Panzer Vor !!
 main();
@@ -120,12 +116,14 @@ function main(){
 
                 var fetchNum;
 
-                while(isOldFreshman(fetchNum = QQNumbers.pop())){
-                    QQdone.push(fetchNum);
-                    console.log("QQ 第 " + item + " 号, 开始爬取 QQ 号 " + fetchNum)
-                    fetchData(fetchNum, item);
-                    return;
+                while(true){
+                    if (isOldFreshman(fetchNum = QQNumbers.pop())) break;
                 }
+                
+                QQdone.push(fetchNum);
+                console.log("QQ 第 " + item + " 号, 开始爬取 QQ 号 " + fetchNum)
+                fetchData(fetchNum, item);
+                return;
             }
 
             console.log("星星之火即将熄灭")
@@ -712,6 +710,11 @@ function log(currentQQID, msg){
     7月17日 购买
         2332952069----gsp142     已冻结
         2308583910----exehg2     已冻结
+        2326977241----u7v6yx     已冻结
+        2334198261----aa158522   已冻结
+    7月18日 购买
+        3293278947----on0wzx51snue 
+        3291980641----w34j7vpkl 
 
 
 部分数据的请求地址: http://r.qzone.qq.com/cgi-bin/main_page_cgi?uin=616772663&param=3_616772663_0%7C8_8_3095623630_0_1_0_0_1%7C15%7C16&g_tk=320979203
