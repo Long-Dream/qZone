@@ -306,8 +306,12 @@ function getUserInfoAll(targetQQ, currentQQID, timeoutNum){
                         return;
                     }
 
-                    getUserInfoAll(targetQQ, currentQQID, timeoutNum - 1);
-                    return;}
+                    setTimeout(function(){
+                        getUserInfoAll(targetQQ, currentQQID, timeoutNum - 1);
+                    }, 0);
+
+                    return;
+                }
                 throw err; // 获取个人档信息失败
             }
 
@@ -317,7 +321,7 @@ function getUserInfoAll(targetQQ, currentQQID, timeoutNum){
             })
             data.on('end', function(chunk){
 
-                var userInfoJson = JSON.parse(text.replace(/^_Callback\(/, '').replace(/\);$/, '').replace(/([^\\])\\([^\\"nrt])/g, "$1$2"));
+                var userInfoJson = JSON.parse(text.replace(/^_Callback\(/, '').replace(/\);$/, '').replace(/\\'/g, "'"));
 
                 // 权限检查 以及 登录检查
                 switch(userInfoJson.code){
@@ -398,7 +402,10 @@ function getMsgBoard(targetQQ, currentQQID, boardNum, startNum, timeoutNum){
                         return;
                     }
 
-                    getMsgBoard(targetQQ, currentQQID, boardNum, startNum, timeoutNum - 1);
+                    setTimeout(function(){
+                        getMsgBoard(targetQQ, currentQQID, boardNum, startNum, timeoutNum - 1);
+                    }, 0);
+
                     return;
                 }
                 throw err; // 获取留言板信息失败
@@ -410,7 +417,7 @@ function getMsgBoard(targetQQ, currentQQID, boardNum, startNum, timeoutNum){
             })
             data.on('end', function(chunk){
 
-                var boardJson = JSON.parse(text.replace(/^_Callback\(/, '').replace(/\);$/, '').replace(/([^\\])\\([^\\"nrt])/g, "$1$2"));
+                var boardJson = JSON.parse(text.replace(/^_Callback\(/, '').replace(/\);$/, '').replace(/\\'/g, "'"));
 
                 // 权限检查 以及 登录检查
                 switch(boardJson.code){
@@ -460,7 +467,11 @@ function getMsgBoard(targetQQ, currentQQID, boardNum, startNum, timeoutNum){
                 // if(boardJson.code !==  0) throw new Error("获取留言板, 收到未知代码")
 
                 // 就算返回代码正确, list 仍然可能没有被定义
-                if(!boardJson.data.commentList || boardJson.data.commentList.length === 0) return;
+                if(!boardJson.data.commentList || boardJson.data.commentList.length === 0) {
+                    log(currentQQID, '获取留言板 ' +　targetQQ + " : 留言板数组为空");
+                    QQEvents[targetQQ].event.emit("msgBoard", "留言板数组为空");
+                    return;
+                }
 
                 // 留言板有一种特殊情况, 那就是主人设置了 serect, 那么就也不行
                 // 但是 data 还是有的, 所以可以获取 留言板的总数
@@ -481,7 +492,7 @@ function getMsgBoard(targetQQ, currentQQID, boardNum, startNum, timeoutNum){
                     QQEvents[targetQQ].event.emit("msgBoard", boardJson.data.total);
 
                     if(boardJson.data.total > boardNum){
-                        for(var i = boardNum; i < Math.min(boardJson.data.total, config.boardMax); i += boardNum){
+                        for(var i = boardNum, len = Math.min(boardJson.data.total, config.boardMax); i < len; i += boardNum){
                             getMsgBoard(targetQQ, currentQQID, boardNum, i, timeoutNum)
                         }
                     }
@@ -559,7 +570,10 @@ function getShuoShuoMsgList(targetQQ, currentQQID, shuoNum, startNum, timeoutNum
                         return;
                     }
 
-                    getShuoShuoMsgList(targetQQ, currentQQID, shuoNum, startNum, timeoutNum - 1);
+                    setTimeout(function(){
+                        getShuoShuoMsgList(targetQQ, currentQQID, shuoNum, startNum, timeoutNum - 1);
+                    }, 0);
+
                     return;
                 }
                 throw err; // 获取说说信息失败
@@ -567,7 +581,7 @@ function getShuoShuoMsgList(targetQQ, currentQQID, shuoNum, startNum, timeoutNum
 
             // console.log(data.text)
 
-            var msgListJson = JSON.parse(data.text.replace(/^_Callback\(/, '').replace(/\);$/, '').replace(/([^\\])\\([^\\"nrt])/g, "$1$2"));
+            var msgListJson = JSON.parse(data.text.replace(/^_Callback\(/, '').replace(/\);$/, '').replace(/\\'/g, "'"));
 
             // 权限检查 以及 登录检查
             switch(msgListJson.code){
@@ -598,7 +612,11 @@ function getShuoShuoMsgList(targetQQ, currentQQID, shuoNum, startNum, timeoutNum
 
             // 就算返回代码正确, list 仍然可能没有被定义
             // 同时数据库还有个要求... 如果数组为空也会报错
-            if(!msgListJson.msglist || msgListJson.msglist.length === 0) return;
+            if(!msgListJson.msglist || msgListJson.msglist.length === 0) {
+                log(currentQQID, '获取说说 ' +　targetQQ + " : 说说数组为空");
+                QQEvents[targetQQ].event.emit("shuoshuo", "说说数组为空");
+                return;
+            }
 
             log(currentQQID, "说说消息" +　targetQQ + " : 获取成功, 从第 " + startNum + " 条开始, 留言板的信息共有 " + msgListJson.total + " 条");
 
@@ -610,7 +628,7 @@ function getShuoShuoMsgList(targetQQ, currentQQID, shuoNum, startNum, timeoutNum
                 QQEvents[targetQQ].event.emit("shuoshuo", msgListJson.total);
 
                 if(msgListJson.total > shuoNum){
-                    for(var i = shuoNum; i < Math.min(msgListJson.total, config.shuoMax); i += shuoNum){
+                    for(var i = shuoNum, len = Math.min(msgListJson.total, config.shuoMax); i < len; i += shuoNum){
                         getShuoShuoMsgList(targetQQ, currentQQID, shuoNum, i, timeoutNum)
                     }
                 }
@@ -746,6 +764,13 @@ function log(currentQQID, msg){
         3281412160----lishi7589813   买下的时候就冻结了
         3276668506----clb00loqed
         3290067575----wcynzaivtm
+
+        2152028434----fanjin922
+        1917054091----2bvn4uyjpdn 
+        3149680787----q4xg2jvni0 
+        2154474519----w42i5p0l3oew5 
+        2151132771----mn1jjo70av 
+        2151830981----h572wz6c
 
 
 部分数据的请求地址: http://r.qzone.qq.com/cgi-bin/main_page_cgi?uin=616772663&param=3_616772663_0%7C8_8_3095623630_0_1_0_0_1%7C15%7C16&g_tk=320979203
