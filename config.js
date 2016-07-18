@@ -6,6 +6,8 @@ var config     = {
     QQ                  : [
         {userQQ      : 3293278947, password    : 'on0wzx51snue', isLogin     : 0 },
         {userQQ      : 3291980641, password    : 'w34j7vpkl', isLogin     : 0 },
+        {userQQ      : 3290067575, password    : 'wcynzaivtm', isLogin     : 0 },
+        {userQQ      : 3276668506, password    : 'clb00loqed', isLogin     : 0 },
     ],
 
     boardNum            : 20,     // 留言板每次抓取的数量
@@ -15,6 +17,7 @@ var config     = {
     timeout             : 10000,   // 主函数两次爬取之间的间隔
     getTimeout          : 5000,   // 请求的超时时间
     saveQQNumbersTime   : 30000,   // 存储 QQNumbers 的时间间隔
+    timeoutNum          : 3,       // 若请求超时, 进行重试的次数
  
     // 数据库的名称
     dbName      : "Qzone"

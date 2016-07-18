@@ -119,7 +119,7 @@ function main(){
                 while(true){
                     if (isOldFreshman(fetchNum = QQNumbers.pop())) break;
                 }
-                
+
                 QQdone.push(fetchNum);
                 console.log("QQ 第 " + item + " 号, 开始爬取 QQ 号 " + fetchNum)
                 fetchData(fetchNum, item);
@@ -176,13 +176,13 @@ function main(){
         emitQQ(targetQQ, currentQQID)
 
         // 个人档信息
-        getUserInfoAll(targetQQ, currentQQID);
+        getUserInfoAll(targetQQ, currentQQID, config.timeoutNum);
 
         // 留言板信息
-        getMsgBoard(targetQQ, currentQQID, config.boardNum)
+        getMsgBoard(targetQQ, currentQQID, config.boardNum, 0, config.timeoutNum)
 
         // 说说信息
-        getShuoShuoMsgList(targetQQ, currentQQID, config.shuoNum)
+        getShuoShuoMsgList(targetQQ, currentQQID, config.shuoNum, 0, config.timeoutNum)
     }
 
 
@@ -274,8 +274,9 @@ function main(){
  * 
  * @param  {QQ} targetQQ  目标人物的QQ号
  * @param  {QQ} currentQQID 当前爬虫正在使用的QQ号的ID
+ * @param  {int} timeoutNum 超时请求的剩余次数
  */
-function getUserInfoAll(targetQQ, currentQQID){
+function getUserInfoAll(targetQQ, currentQQID, timeoutNum){
 
     request.get('http://base.s21.qzone.qq.com/cgi-bin/user/cgi_userinfo_get_all')
         .set(HTTPheaders)
@@ -292,8 +293,15 @@ function getUserInfoAll(targetQQ, currentQQID){
 
             if(err) {
                 if(err.timeout) {
-                    log(currentQQID, "个人档请求超时"); 
-                    getUserInfoAll(targetQQ, currentQQID);
+                    log(currentQQID, "个人档请求超时, 剩余超时次数 " + timeoutNum);
+
+                    // 如果重复请求次数已达到上限, 则不再进行请求
+                    if(!timeoutNum){
+                        QQEvents[targetQQ].event.emit("userInfo", "请求超时");
+                        return;
+                    }
+
+                    getUserInfoAll(targetQQ, currentQQID, timeoutNum - 1);
                     return;}
                 throw err; // 获取个人档信息失败
             }      
@@ -351,8 +359,9 @@ function getUserInfoAll(targetQQ, currentQQID){
  * @param  {QQ} currentQQID 当前爬虫正在使用的QQ号的ID
  * @param  {int} boardNum 每次抓取的留言板条数
  * @param  {int} startNum 开始的留言板条数  默认为 0
+ * @param  {int} timeoutNum 超时请求的剩余次数
  */
-function getMsgBoard(targetQQ, currentQQID, boardNum, startNum){
+function getMsgBoard(targetQQ, currentQQID, boardNum, startNum, timeoutNum){
 
     // 将开始数默认为 0
     startNum = startNum || 0;
@@ -375,8 +384,15 @@ function getMsgBoard(targetQQ, currentQQID, boardNum, startNum){
             
             if(err) {
                 if(err.timeout) {
-                    log(currentQQID, "留言板请求超时"); 
-                    getMsgBoard(targetQQ, currentQQID, boardNum, startNum);
+                    log(currentQQID, "留言板请求超时, 剩余超时次数 " + timeoutNum);
+
+                    // 如果重复请求次数已达到上限, 则不再进行请求
+                    if(!timeoutNum){
+                        QQEvents[targetQQ].event.emit("msgBoard", "请求超时");
+                        return;
+                    }
+
+                    getMsgBoard(targetQQ, currentQQID, boardNum, startNum, timeoutNum - 1);
                     return;
                 }
                 throw err; // 获取留言板信息失败
@@ -460,7 +476,7 @@ function getMsgBoard(targetQQ, currentQQID, boardNum, startNum){
 
                     if(boardJson.data.total > boardNum){
                         for(var i = boardNum; i < Math.min(boardJson.data.total, config.boardMax); i += boardNum){
-                            getMsgBoard(targetQQ, currentQQID, boardNum, i)
+                            getMsgBoard(targetQQ, currentQQID, boardNum, i, timeoutNum)
                         }
                     }
                 }
@@ -499,8 +515,9 @@ function getMsgBoard(targetQQ, currentQQID, boardNum, startNum){
  * 
  * @param  {QQ} targetQQ  目标人物的QQ号
  * @param  {QQ} currentQQID 当前爬虫正在使用的QQ号的ID
+ * @param  {int} timeoutNum 超时请求的剩余次数
  */
-function getShuoShuoMsgList(targetQQ, currentQQID, shuoNum, startNum){
+function getShuoShuoMsgList(targetQQ, currentQQID, shuoNum, startNum, timeoutNum){
 
     // 将开始数默认为 0
     startNum = startNum || 0;
@@ -528,8 +545,15 @@ function getShuoShuoMsgList(targetQQ, currentQQID, shuoNum, startNum){
             
             if(err) {
                 if(err.timeout) {
-                    log(currentQQID, "说说请求超时");
-                    getShuoShuoMsgList(targetQQ, currentQQID, shuoNum, startNum);
+                    log(currentQQID, "说说请求超时, 剩余超时次数 " + timeoutNum);
+
+                    // 如果重复请求次数已达到上限, 则不再进行请求
+                    if(!timeoutNum){
+                        QQEvents[targetQQ].event.emit("shuoshuo", "请求超时");
+                        return;
+                    }
+
+                    getShuoShuoMsgList(targetQQ, currentQQID, shuoNum, startNum, timeoutNum - 1);
                     return;
                 }
                 throw err; // 获取说说信息失败
@@ -581,7 +605,7 @@ function getShuoShuoMsgList(targetQQ, currentQQID, shuoNum, startNum){
 
                 if(msgListJson.total > shuoNum){
                     for(var i = shuoNum; i < Math.min(msgListJson.total, config.shuoMax); i += shuoNum){
-                        getShuoShuoMsgList(targetQQ, currentQQID, shuoNum, i)
+                        getShuoShuoMsgList(targetQQ, currentQQID, shuoNum, i, timeoutNum)
                     }
                 }
             }
@@ -606,12 +630,10 @@ function getShuoShuoMsgList(targetQQ, currentQQID, shuoNum, startNum){
                                 QQNumbers.push(replyItem.uin);
                                 // log(currentQQID, "当前说说爬取 QQ : " + targetQQ + ", 已将 QQ " + replyItem.uin + " 加入队列")
                             }
-
                         })
                     }
                 })
             }
-        
         })
 }
 
@@ -715,6 +737,9 @@ function log(currentQQID, msg){
     7月18日 购买
         3293278947----on0wzx51snue 
         3291980641----w34j7vpkl 
+        3281412160----lishi7589813   买下的时候就冻结了
+        3276668506----clb00loqed
+        3290067575----wcynzaivtm  
 
 
 部分数据的请求地址: http://r.qzone.qq.com/cgi-bin/main_page_cgi?uin=616772663&param=3_616772663_0%7C8_8_3095623630_0_1_0_0_1%7C15%7C16&g_tk=320979203
