@@ -11,7 +11,7 @@ var config     = require("./config.js")
 /**
  * 第 -1 阶段
  * 获取登录过程中所必须的 cookie 值
- * 
+ *
  * @param  {QQ} currentQQID 当前爬虫正在使用的QQ号的ID
  */
 function getLoginCookie(currentQQID){
@@ -44,7 +44,7 @@ function getLoginCookie(currentQQID){
 /**
  * 第 0 阶段
  * 获取登录过程中所必须的 cookie 值----qrsig
- * 
+ *
  * @param  {QQ} currentQQID 当前爬虫正在使用的QQ号的ID
  */
 function getLoginCookie_qrsig(currentQQID){
@@ -56,15 +56,15 @@ function getLoginCookie_qrsig(currentQQID){
             if(err) throw err;      // 获取 cookie : qrsig 失败
 
             setCookie(currentQQID, data);
-            
+
             getVerifyMsg(currentQQID)
         })
 }
 
 /**
  * 获取验证码的相关信息 第一阶段
- * 然后应该是将返回的内容添加到 cookie 里 
- * 
+ * 然后应该是将返回的内容添加到 cookie 里
+ *
  * @param  {QQ} currentQQID 当前爬虫正在使用的QQ号的ID
  */
 function getVerifyMsg(currentQQID){
@@ -90,7 +90,7 @@ function getVerifyMsg(currentQQID){
 
             // 这个请求里面也有一些比较重要的 cookie
             setCookie(currentQQID, data);
-            
+
             var text = '';
 
             data.on('data', function(chunk){
@@ -123,7 +123,7 @@ function getVerifyMsg(currentQQID){
 /**
  * 获取验证码的相关信息 第二阶段
  * 需要用到第一阶段获取到的 cap_cd, 也就是 verifyArr[1]
- * 
+ *
  * @param  {QQ} currentQQID 当前爬虫正在接受治疗的QQ号的ID
  * @param  {string} cap_cd      第一阶段获取到的必要信息
  */
@@ -160,7 +160,7 @@ function getVerifyMoreMsg(currentQQID, cap_cd){
 /**
  * 获取验证码相关信息 第三阶段
  * 根据前两步用到的 cap_cd 和 g_vsig, 获取验证码图片
- * 
+ *
  * @param  {QQ} currentQQID 当前爬虫正在接受治疗的QQ号的ID
  * @param  {string} cap_cd      第一阶段获取到的必要信息
  * @param  {string} g_vsig      第二阶段获取到的必要信息
@@ -189,7 +189,7 @@ function getVerifyImg(currentQQID, cap_cd, g_vsig){
                 // 因为请求也有延时, 所以此时再次判断是否有正在请求验证码
                 // 如果有, 就下次再说!
                 // 当然, 前提是过来的是别的请求
-                
+
                 if(main.flags.verifyFlag > 0 &&　main.flags.verifyNum　!== currentQQID) {
                     config.QQ[currentQQID].isLogin = 0;
                     return log(currentQQID, "正在等待当前验证码验证结束!")
@@ -203,7 +203,10 @@ function getVerifyImg(currentQQID, cap_cd, g_vsig){
                 log(currentQQID, "验证码图片已经保存, 请打开" + './verifyImg/' + imgName +　' , 并在下方输入验证码: ')
 
                 // 显示图片, 同时获取子进程的 pid
-                var imgCp = cp.exec('display ./verifyImg/' + imgName)
+                // linux
+                // var imgCp = cp.exec('display ./verifyImg/' + imgName)
+                // windows
+                var imgCp = cp.exec('start verifyImg/' + imgName)
 
                 // 开启输入
                 process.stdin.resume();
@@ -215,11 +218,11 @@ function getVerifyImg(currentQQID, cap_cd, g_vsig){
                     process.stdin.pause();
 
                     // 先行检查验证码的字符数
-                    if(chunk.length !== 5){
-                        process.stdin.resume();
-                        log(currentQQID, "验证码只有 4 个字符哦, 请重新输入:");
-                        return;
-                    }
+                    // if(chunk.length !== 4){
+                    //     process.stdin.resume();
+                    //     log(currentQQID, "验证码只有 4 个字符哦, 请重新输入:");
+                    //     return;
+                    // }
 
                     // NOTICE: 有坑注意!  及时移除事件, 不然下次执行 process.stdin.on('data') 还会绑定第二个事件!
                     process.stdin.removeListener('data', dataFun);
@@ -236,7 +239,7 @@ function getVerifyImg(currentQQID, cap_cd, g_vsig){
 /**
  * 获取验证码的相关信息 第四阶段
  * 用于对输入的验证码进行验证
- * 
+ *
  * @param  {QQ} currentQQID 当前爬虫正在接受治疗的QQ号的ID
  * @param  {string} cap_cd      第一阶段获取到的必要信息
  * @param  {string} g_vsig      第二阶段获取到的必要信息
@@ -289,7 +292,7 @@ function getVerifyResult(currentQQID, cap_cd, g_vsig, ans){
  * 第五阶段
  *
  *
- * 
+ *
  * ***调用 QQLib 进行QQ的登录, 并将返回的 cookie 值存储到 main.jsonCookie 中*** 已废弃
  *
  * 实现登录模块, 该模块需要先进行验证码的验证, 并获取两个关键的字段 verifycode 和 pt_verifysession_v1
@@ -297,18 +300,18 @@ function getVerifyResult(currentQQID, cap_cd, g_vsig, ans){
  * 如果登录成功, 就将 config 里面的 isLogin 设为1
  *
  * 注意: 参数中, 如果需要验证码, pt_vcode_v1 的值就为 1 ; 如果不需要验证码, pt_vcode_v1 的值就为 0
- * 
+ *
  * @param  {QQ} currentQQID 当前爬虫正在使用的QQ号的ID
  * @param  {string} verifycode  第四阶段获取到的 verifycode
  * @param  {string} pt_verifysession_v1  第四阶段获取到的 pt_verifysession_v1
- * 
+ *
  */
 function QQTryLogin(currentQQID, verifycode, pt_verifysession_v1){
 
     // 需要验证码的话, verifycode 的形式为 @WgU; 不需要的话, verifycode 的形式为 !BSE.
     // 所以通过判断 @ 的有无可以判断过程中有没有使用验证码  1 为 使用了验证码  0 为 没有使用验证码
     var pt_vcode_v1 = verifycode.indexOf("@") >= 0 ? 1 : 0;
-    
+
     request.get("http://ptlogin2.qq.com/login")
         .set({Cookie : main.json2cookies(main.jsonCookie[currentQQID])})
         .set(main.HTTPheaders)
@@ -344,7 +347,7 @@ function QQTryLogin(currentQQID, verifycode, pt_verifysession_v1){
             })
 
             data.on('end', function(){
-                
+
                 var verifyArr = text.replace(/^ptuiCB\(/, '').replace(/\);$/, '').replace(/'/g, '').split(',')
 
                 // 如果第一个参数是 0 , 则说明登录成功; 如果第一个参数不是 0 ,那就有各种各样的情况了...姑且认为账号被冻结了吧
@@ -381,11 +384,11 @@ function QQTryLogin(currentQQID, verifycode, pt_verifysession_v1){
 
 /**
  * 第六阶段
- * 
+ *
  * 在验证成功后, 获取 第五阶段 所给的网址, 以获取进行访问所必须的 cookie 值
  * 此处需要注意的是, 需不需要验证码所得到的 set-cookie 是不一样的
  * 比如, 需要验证码就是 p_skey , 而不需要验证码则是 skey
- * 
+ *
  * @param  {QQ} currentQQID         当前爬虫正在使用的QQ号的ID
  * @param  {url} url                第五阶段获取到的 url
  * @param  {boolean} isVerify       是否采用了验证码   1 为 使用了验证码  0 为 没有使用验证码
@@ -403,7 +406,7 @@ function getSuccessCookies(currentQQID, url, isVerify){
             main.jsonCookie[currentQQID] = {};
 
             setCookie(currentQQID, data);
-            
+
             // 此时允许所有请求
             // 因为只有当进行了验证码验证的情况下才对 verifyFlag 有 +1 的操作, 所以此处进行减一的操作
             if(isVerify) {
@@ -434,7 +437,7 @@ function getSuccessCookies(currentQQID, url, isVerify){
  * 然后一部分一部分地拷进 js 文件里
  *
  * 啊啊啊啊啊啊啊啊啊啊啊啊啊啊啊啊啊啊啊啊啊啊啊啊啊啊啊啊啊啊啊啊啊啊啊啊啊啊啊
- * 
+ *
  * @param  {QQ}     currentQQID 当前爬虫正在使用的QQ号的ID
  * @param  {string} verifycode  获取到的 verifycode
  * @return {string}             计算出来的结果 p
@@ -477,7 +480,7 @@ function addCookie(obj, cookieID){
  * 百度到的东西...不知道靠不靠谱
  * 计算 pgv_pvid  就是 getPgv_1()
  * 计算 pgv_info  则是 getPgv_1('s')
- * 
+ *
  * @return {string}   计算到的 pgv_pvid 或 pgv_info
  */
 function getPgv_1(d) {
@@ -489,7 +492,7 @@ function getPgv_1(d) {
  * 百度到的东西...不知道靠不靠谱
  * 计算 pgv_pvi  就是 getPgv_2()
  * 计算 pgv_si   则是 getPgv_2('s')
- * 
+ *
  * @return {string}   计算到的 pgv_pvi 或 pgv_si
  */
 function getPgv_2(d) {
@@ -498,14 +501,14 @@ function getPgv_2(d) {
 
 /**
  * 将响应头之中的 set-cookie 加入到现有的 cookie 中
- * 
+ *
  * @param  {QQ}     currentQQID 当前爬虫正在使用的QQ号的ID
  * @param {res} data        superagent 的数据文件
  */
 function setCookie(currentQQID, data){
 
     if(typeof data.headers['set-cookie'] !== 'object') return console.log(typeof data.headers['set-cookie'])
- 
+
     data.headers['set-cookie'].forEach(function(item, index){
         var pattern = /(.*?)=(.*?);/;
         var match = pattern.exec(item);
@@ -522,7 +525,7 @@ function setCookie(currentQQID, data){
 
 /**
  * 格式化输出日志
- * 
+ *
  * @param  {QQ} currentQQID 当前爬虫正在使用的QQ号的ID
  * @param  {str} msg         消息内容
  */

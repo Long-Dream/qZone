@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title><%= title %></title>
+    <link rel='stylesheet' href='/css/bootstrap.min.css' />
+    <script src="/js/vue.min.js"></script>
+  </head>
+  <body id="app">
+    <form class="form-group" id="form">
+        <input type="text" id="name" name="userQQ" class="form-control" placeholder="请输入qq号">
+        <input type="password" id="password" name="password" class="form-control" placeholder="请输入qq密码">
+    </form>
+    <button class="btn btn-primary" @click="submit()">提交</button>
+
+    <h2>爬取的用户信息</h2>
+    <table class="table table-striped">
+      <thead>
+        <tr>
+          <th>QQ号</th>
+          <th>昵称</th>
+          <th>性别</th>
+          <th>年龄</th>
+          <th>出生年份</th>
+          <th>生日</th>
+          <th>所在地</th>
+          <th>出生地</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr v-for="userInfo in userInfos">
+          <td>{{ userInfo.uin }}</td>
+          <td>{{ userInfo.nickname }}</td>
+          <td>{{ userInfo.sex == 2 ? '女' : '男' }}</td>
+          <td>{{ userInfo.age }}</td>
+          <td>{{ userInfo.birthyear }}</td>
+          <td>{{ userInfo.birthday }}</td>
+          <td>{{ userInfo.country + ' ' + userInfo.province + ' ' + userInfo.city }}</td>
+          <td>{{ userInfo.hco + ' ' + userInfo.hp + ' ' + userInfo.hc }}</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <script>
+      var app = new Vue({
+        el: '#app',
+        data: {
+         userInfos:[],
+        },
+        created: function () {
+          var _this = this;
+          var num = 1;
+          function ajax() {
+            var xhr = new XMLHttpRequest();
+            xhr.open('get', '/list', true);
+            xhr.send(null);
+            xhr.onreadystatechange = function () {
+              if (xhr.readyState == 4) {
+                _this.userInfos = JSON.parse(xhr.responseText);
+              }
+            }
+            console.log(num++)
+          }
+          setInterval(function () {
+            ajax()
+          }, 3000);
+        },
+        methods: {
+          submit: function () {
+              var xhr = new XMLHttpRequest();
+              var form = document.getElementById('form');
+              xhr.open('post', '/', true);
+              xhr.send(new FormData(form));
+              xhr.onreadystatechange = function () {
+                if (xhr.readyState == 4) {
+                  alert(xhr.responseText)
+                }
+              }
+          },
+        }
+      })
+
+    </script>
+  </body>
+</html>

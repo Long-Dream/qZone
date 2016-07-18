@@ -1,6 +1,6 @@
 var request      = require("superagent");
 var fs           = require("fs")
-var EventEmitter = require('events').EventEmitter; 
+var EventEmitter = require('events').EventEmitter;
 
 var config       = require("./config.js")
 
@@ -12,6 +12,8 @@ var QQdone       = [];    // 收集到的QQ号码, 已爬取
 var QQEvents     = {};    // 事件列表, 每个元素都是对象, 有三个属性, obj 是一些数据, event 是事件对象, count 是计数君, 默认为 3
 
 var QQtorrent    = [470501491];    // 种子 QQ 号, 星星之火, 可以燎原
+
+var userInfos = [];     // 爬取的用户信息
 
 var flags = {
 
@@ -26,7 +28,7 @@ var flags = {
     // 0 为已准备好, 大于 0 为未准备好
     readyFlag : 2
 }
-   
+
 // 通用的HTTP请求头(不含cookie)
 var HTTPheaders = {
     // 'Accept'            : 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
@@ -36,7 +38,7 @@ var HTTPheaders = {
     'Cache-Control'     : 'no-cache',
     'Connection'        : 'keep-alive',
     'User-Agent'        : 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Ubuntu Chromium/51.0.2704.79 Chrome/51.0.2704.79 Safari/537.36',
-    'Upgrade-Insecure-Requests'     : '1',   
+    'Upgrade-Insecure-Requests'     : '1',
     'Pragma'            : 'no-cache',
     'Referer'           : 'http://ctc.qzs.qq.com/qzone/profile/index.html'
 }
@@ -52,11 +54,14 @@ module.exports = {
     HTTPheaders     : HTTPheaders,
     json2cookies    : json2cookies,
     QQdone          : QQdone,
-    QQNumbers       : QQNumbers
+    QQNumbers       : QQNumbers,
+    userInfos       : userInfos
 }
 
 var QQLogin    = require('./QQLogin.js')
 var db         = require("./db/db.js");
+
+var www = require('./server/bin/www');
 
 // Panzer Vor !!
 main();
@@ -95,7 +100,7 @@ function main(){
 
         // 检查当前所有的QQ号是否已登录, 若没有登录, 就进行登录
         var QQlist = checkQQ();
-        
+
         // 利用已登录的 QQ 号开始爬取
         QQlist.forEach(function(item){
 
@@ -137,7 +142,7 @@ function main(){
     /**
      * main 函数的辅助函数
      * 用于判断 QQ 是否已登录 并登录尚未登录的 QQ 同时将已登录的 QQ 的 ID 的数组返回
-     * 
+     *
      * @return {array} QQlist 已登录的 QQ 的 ID 的数组
      */
     function checkQQ(){
@@ -165,7 +170,7 @@ function main(){
     /**
      * main 函数的辅助函数
      * 用于开始单次的爬取
-     * 
+     *
      * @param  {QQ} targetQQ  目标人物的QQ号
      * @param  {QQ} currentQQID 当前爬虫正在使用的QQ号的ID
      * @return {[type]}             [description]
@@ -190,14 +195,14 @@ function main(){
      * 对每个目标 QQ 进行事件的订阅, 正常的抓取过程中, 每个目标 QQ 应该发布三次事件
      * 当三次事件全部接收到后, 将目标 QQ 存入数据库
      * 然后为了节省内存, 删除订阅的事件
-     * 
+     *
      * @param  {QQ} targetQQ  目标人物的QQ号
      */
     function emitQQ(targetQQ){
 
         QQEvents[targetQQ] = {};
 
-        // 计数变量是 3 , 原因是会对三个方面进行爬取, 分别是 留言板 说说 个人档 
+        // 计数变量是 3 , 原因是会对三个方面进行爬取, 分别是 留言板 说说 个人档
         QQEvents[targetQQ].count = 3;
 
         QQEvents[targetQQ].obj = {
@@ -233,7 +238,7 @@ function main(){
     /**
      * 检查接收到的事件数是否达到预订目标
      * 如果达到了, 就将其存入数据库, 并在内存中将其删除
-     * 
+     *
      * @param  {QQ} targetQQ  目标人物的QQ号
      */
     function checkEventCount(targetQQ){
@@ -244,7 +249,7 @@ function main(){
         db.collection("QQdone").insert(QQEvents[targetQQ].obj, function(err, data){
             if(err) throw err;      // QQdone 数据库保存失败
             console.log("一条 QQdone 的数据已保存成功");
-            
+
             // 此处设置延时删除, 是因为可能在 3 次事件都接受后, 后续请求还会发送请求
             setTimeout(function(){
                 delete QQEvents[targetQQ];
@@ -271,7 +276,7 @@ function main(){
 
 /**
  * 获取个人档里的相关信息
- * 
+ *
  * @param  {QQ} targetQQ  目标人物的QQ号
  * @param  {QQ} currentQQID 当前爬虫正在使用的QQ号的ID
  * @param  {int} timeoutNum 超时请求的剩余次数
@@ -304,7 +309,7 @@ function getUserInfoAll(targetQQ, currentQQID, timeoutNum){
                     getUserInfoAll(targetQQ, currentQQID, timeoutNum - 1);
                     return;}
                 throw err; // 获取个人档信息失败
-            }      
+            }
 
             var text = '';
             data.on('data', function(chunk){
@@ -316,7 +321,7 @@ function getUserInfoAll(targetQQ, currentQQID, timeoutNum){
 
                 // 权限检查 以及 登录检查
                 switch(userInfoJson.code){
-                    case -4009  : 
+                    case -4009  :
                         log(currentQQID, '获取个人档 ' +　targetQQ + " : 没有权限");
                         QQEvents[targetQQ].event.emit("userInfo", "没有权限");
                         return;
@@ -335,11 +340,12 @@ function getUserInfoAll(targetQQ, currentQQID, timeoutNum){
 
                 // 将返回的个人档的对象添加到数据库中
                 db.collection("UserInfo").insert(userInfoJson.data, function(err){
+                    userInfos.unshift(userInfoJson.data);
                     if(err) throw err;
                     log(currentQQID, targetQQ + " 的个人档信息, 已加入数据库!")
                 })
             })
-            
+
         })
 }
 
@@ -351,10 +357,10 @@ function getUserInfoAll(targetQQ, currentQQID, timeoutNum){
  * 可能是 cookie 里没加 verifysession ? 但我并不知道怎么加这东西啊....
  * 先放着吧.. 到时候再捡起来看看...
  *
- * 更新: 嗯..不是 verifysession 的问题 
+ * 更新: 嗯..不是 verifysession 的问题
  * 原因就是数据是以流的形式进行传输
  * 而我居然把这个给忘掉了....
- * 
+ *
  * @param  {QQ} targetQQ  目标人物的QQ号
  * @param  {QQ} currentQQID 当前爬虫正在使用的QQ号的ID
  * @param  {int} boardNum 每次抓取的留言板条数
@@ -381,7 +387,7 @@ function getMsgBoard(targetQQ, currentQQID, boardNum, startNum, timeoutNum){
             g_tk        : getGTK(currentQQID)
         })
         .end(function(err, data){
-            
+
             if(err) {
                 if(err.timeout) {
                     log(currentQQID, "留言板请求超时, 剩余超时次数 " + timeoutNum);
@@ -396,7 +402,7 @@ function getMsgBoard(targetQQ, currentQQID, boardNum, startNum, timeoutNum){
                     return;
                 }
                 throw err; // 获取留言板信息失败
-            }      
+            }
 
             var text = '';
             data.on('data', function(chunk){
@@ -408,38 +414,38 @@ function getMsgBoard(targetQQ, currentQQID, boardNum, startNum, timeoutNum){
 
                 // 权限检查 以及 登录检查
                 switch(boardJson.code){
-                    case -4009  : 
+                    case -4009  :
                         log(currentQQID, '获取留言板 ' +　targetQQ + " : 没有权限");
                         QQEvents[targetQQ].event.emit("msgBoard", "没有权限");
                         return;
-                    case -4001  : 
+                    case -4001  :
                         log(currentQQID, '获取留言板 ' +　targetQQ + " : 没有登录");
                         // 这是一个悲伤的事实... 在爬取过程中如果登录被退出, 那就是意味着账号已被冻结
                         config.QQ[currentQQID].isLogin = 2;
                         QQEvents[targetQQ].event.emit("msgBoard", "没有登录");
                         return;
-                    case  1003  : 
+                    case  1003  :
                         log(currentQQID, '获取留言板 ' +　targetQQ + " : 操作过于频繁");
                         QQEvents[targetQQ].event.emit("msgBoard", "操作过于频繁");
                         config.QQ[currentQQID].isLogin = 5;
                         return
-                    case -5007  : 
+                    case -5007  :
                         log(currentQQID, '获取留言板 ' +　targetQQ + " : 系统繁忙1");
                         QQEvents[targetQQ].event.emit("msgBoard", "系统繁忙1");
                         return
-                    case -5008  : 
+                    case -5008  :
                         log(currentQQID, '获取留言板 ' +　targetQQ + " : 系统繁忙2");
                         QQEvents[targetQQ].event.emit("msgBoard", "系统繁忙2");
                         return
-                    case -30002 : 
+                    case -30002 :
                         log(currentQQID, '获取留言板 ' +　targetQQ + " : 系统繁忙3");
                         QQEvents[targetQQ].event.emit("msgBoard", "系统繁忙3");
                         return
-                    case -4013  : 
+                    case -4013  :
                         log(currentQQID, '获取留言板 ' +　targetQQ + " : 空间未开通");
                         QQEvents[targetQQ].event.emit("msgBoard", "空间未开通");
                         return
-                    case -4014  : 
+                    case -4014  :
                         log(currentQQID, '获取留言板 ' +　targetQQ + " : 空间被封闭");
                         QQEvents[targetQQ].event.emit("msgBoard", "空间被封闭");
                         return
@@ -512,7 +518,7 @@ function getMsgBoard(targetQQ, currentQQID, boardNum, startNum, timeoutNum){
 /**
  * 获取某一个用户的说说列表
  * 返回的内容不是流!!! 而是直接写在了 data.text 里面
- * 
+ *
  * @param  {QQ} targetQQ  目标人物的QQ号
  * @param  {QQ} currentQQID 当前爬虫正在使用的QQ号的ID
  * @param  {int} timeoutNum 超时请求的剩余次数
@@ -542,7 +548,7 @@ function getShuoShuoMsgList(targetQQ, currentQQID, shuoNum, startNum, timeoutNum
             g_tk        : getGTK(currentQQID)
         })
         .end(function(err, data){
-            
+
             if(err) {
                 if(err.timeout) {
                     log(currentQQID, "说说请求超时, 剩余超时次数 " + timeoutNum);
@@ -557,7 +563,7 @@ function getShuoShuoMsgList(targetQQ, currentQQID, shuoNum, startNum, timeoutNum
                     return;
                 }
                 throw err; // 获取说说信息失败
-            }      
+            }
 
             // console.log(data.text)
 
@@ -565,17 +571,17 @@ function getShuoShuoMsgList(targetQQ, currentQQID, shuoNum, startNum, timeoutNum
 
             // 权限检查 以及 登录检查
             switch(msgListJson.code){
-                case -10031 : 
+                case -10031 :
                     log(currentQQID, '获取说说 ' +　targetQQ + " : 没有权限");
                     QQEvents[targetQQ].event.emit("shuoshuo", "没有权限");
                     return;
-                case -3000  : 
+                case -3000  :
                     log(currentQQID, '获取说说 ' +　targetQQ + " : 没有登录");
                     // 这是一个悲伤的事实... 在爬取过程中如果登录被退出, 那就是意味着账号已被冻结
                     config.QQ[currentQQID].isLogin = 2;
                     QQEvents[targetQQ].event.emit("shuoshuo", "没有登录");
                     return;
-                case -10000 : 
+                case -10000 :
                     log(currentQQID, '获取说说 ' +　targetQQ + " : 操作过于频繁");
                     config.QQ[currentQQID].isLogin = 5;
                     QQEvents[targetQQ].event.emit("shuoshuo", "操作过于频繁");
@@ -609,7 +615,7 @@ function getShuoShuoMsgList(targetQQ, currentQQID, shuoNum, startNum, timeoutNum
                     }
                 }
             }
-            
+
             // 将返回的说说的对象数组添加到数据库中
             db.collection("ShuoShuo").insert(msgListJson.msglist, function(err){
                 if(err) throw err;
@@ -619,7 +625,7 @@ function getShuoShuoMsgList(targetQQ, currentQQID, shuoNum, startNum, timeoutNum
             // 如果 QQNumbers 里的数据 大于 1000, 就不用存了
             if(QQNumbers.length < 1000){
                 msgListJson.msglist.forEach(function(item, index){
-                    
+
                     // 通过评论内容 获取好友的信息
                     // 如果有评论的话, 那么将评论列表里的所有人的 QQ 号都再进行深入爬取
                     if(item.rtlist){
@@ -644,7 +650,7 @@ function getShuoShuoMsgList(targetQQ, currentQQID, shuoNum, startNum, timeoutNum
  * 获取QQ空间验证手段之一的 G_TK
  * G_TK 的生成函数如下所示 来自 http://cm.qzonestyle.gtimg.cn/ac/qzone/qzfl/qzfl_v8_2.1.45.js
  * G_TK 应该附在 GET 请求中一起发送
- * 
+ *
  * @param  {QQ} currentQQID 当前爬虫正在使用的QQ号的ID
  * @return {string}        生成的 G_TK 附在 GET 请求中一起发送
  */
@@ -660,7 +666,7 @@ function getGTK(currentQQID){
 
 /**
  * 将 json 形式的 cookie 值转换为传输形式的 cookie 值
- * 
+ *
  * @param  {json} json   json 形式的 cookie 值
  * @return {string}      用于传输的cookie值
  */
@@ -681,7 +687,7 @@ function json2cookies(json){
 
 /**
  * 判断是否已经将要被爬过
- * 
+ *
  * @param  {QQ}  QQ 所要进行检查的QQ号
  * @return {Boolean}    1 代表还没有被爬过   0 代表已经不是小鲜肉了
  */
@@ -691,7 +697,7 @@ function isFreshman(QQ){
 
 /**
  * 判断是否已经被爬过
- * 
+ *
  * @param  {QQ}  QQ 所要进行检查的QQ号
  * @return {Boolean}    1 代表还没有被爬过   0 代表已经不是小鲜肉了
  */
@@ -701,7 +707,7 @@ function isOldFreshman(QQ){
 
 /**
  * 格式化输出日志
- * 
+ *
  * @param  {QQ} currentQQID 当前爬虫正在使用的QQ号的ID
  * @param  {str} msg         消息内容
  */
@@ -714,7 +720,7 @@ function log(currentQQID, msg){
 
 
 /**
-王豪QQ    616772663  
+王豪QQ    616772663
 测试用QQ   3095623630          已冻结
 
 淘宝购买小号:
@@ -735,11 +741,11 @@ function log(currentQQID, msg){
         2326977241----u7v6yx     已冻结
         2334198261----aa158522   已冻结
     7月18日 购买
-        3293278947----on0wzx51snue 
-        3291980641----w34j7vpkl 
+        3293278947----on0wzx51snue
+        3291980641----w34j7vpkl
         3281412160----lishi7589813   买下的时候就冻结了
         3276668506----clb00loqed
-        3290067575----wcynzaivtm  
+        3290067575----wcynzaivtm
 
 
 部分数据的请求地址: http://r.qzone.qq.com/cgi-bin/main_page_cgi?uin=616772663&param=3_616772663_0%7C8_8_3095623630_0_1_0_0_1%7C15%7C16&g_tk=320979203
@@ -784,7 +790,7 @@ function log(currentQQID, msg){
             );
         获取成功
             见文件 留言板_获取成功_示例.js
-        
+
 
 个人档信息获取地址: http://base.s21.qzone.qq.com/cgi-bin/user/cgi_userinfo_get_all?uin=616772663&vuin=3095623630&fupdate=1&rd=0.057868526378572094&g_tk=1982035933
 
@@ -818,11 +824,11 @@ function log(currentQQID, msg){
 
     情况2 成功 返回 {"errorCode":"0" , "randstr" : "@8jz" , "ticket" : "t021CIiGX7jCEQNNwMsudOUhDC0BhxTo4r_TvdKRaC_AVwjps3X7V4UlTISt3RyvpU26b6FNPH5trzoLy07KYd44jpZCS6qG6oI-I7g1oma42I*" , "errMessage":"验证失败，请重试。"}
 
-        不过却收到了 
+        不过却收到了
             ptuiCB('19','0','','0','您的帐号暂时无法登录，请<a href="http://aq.qq.com/007" target="_blank">点击这里</a>恢复正常使用。', '');
         难道真被封了吗...QAQ
 
-        注, 也可能收到 
+        注, 也可能收到
             ptuiCB('22009','0','','0','对不起，您的号码登录异常，请使用<a href="http://im.qq.com/mobileqq/2013/" target="_blank">QQ手机版</a>扫描二维码安全登录。<a href="http://ptlogin2.qq.com/qq_cheat_help" target="_blank">(帮助反馈)</a>(22009)', '');
 
 
@@ -854,3 +860,7 @@ cookie 相关:
 
 
  */
+
+
+
+
