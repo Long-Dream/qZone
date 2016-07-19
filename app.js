@@ -772,7 +772,7 @@ function log(currentQQID, msg){
         2151132771----mn1jjo70av        已冻结
         2151830981----h572wz6c          已冻结
     7月19日 购买
-        2674889378----joryyqogaf 
+        2674889378----joryyqogaf        已冻结
         2460545451----mssdvcvhft 
         2675085659----shaashcexv 
         2685867114----civscnkifq 
