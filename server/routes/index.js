@@ -5,7 +5,7 @@ var main = require('../../app.js');
 /* GET home page. */
 router.get('/', function(req, res, next) {
     res.render('index', {
-        title: '爬取到的用户信息'
+        title: '后台管理系统'
     });
 });
 
