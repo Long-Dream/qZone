@@ -4,17 +4,7 @@ var config     = {
     // 其中 isLogin 用于判断QQ是否已登录
     // 0 代表没有登录   1 代表登录成功   2 代表账号已被冻结  3 代表正在登录  4 代表账号或者密码不正确  5 代表操作过于频繁 等一两天再试
     QQ                  : [
-        // {userQQ      : 3293278947, password    : 'on0wzx51snue', isLogin     : 0 },
-        // {userQQ      : 3291980641, password    : 'w34j7vpkl', isLogin     : 0 },
-        // {userQQ      : 3290067575, password    : 'wcynzaivtm', isLogin     : 0 },
-        // {userQQ      : 3276668506, password    : 'clb00loqed', isLogin     : 0 },
-
-        {userQQ      : 2152028434, password    : 'fanjin922', isLogin     : 0 },
-        {userQQ      : 1917054091, password    : '2bvn4uyjpdn', isLogin     : 0 },
-        {userQQ      : 3149680787, password    : 'q4xg2jvni0', isLogin     : 0 },
-        {userQQ      : 2154474519, password    : 'w42i5p0l3oew5', isLogin     : 0 },
-        {userQQ      : 2151132771, password    : 'mn1jjo70av', isLogin     : 0 },
-        {userQQ      : 2151830981, password    : 'h572wz6c', isLogin     : 0 },
+        // {userQQ      : 2674889378, password    : 'joryyqogaf', isLogin     : 0 },
     ],
 
     boardNum            : 20,     // 留言板每次抓取的数量

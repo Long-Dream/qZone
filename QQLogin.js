@@ -114,6 +114,8 @@ function getVerifyMsg(currentQQID){
                     return;
                 }
 
+                console.log(verifyArr);
+
                 // 不应该走到这里
                 throw new Error("一定是哪里出错了!");
             })
@@ -204,9 +206,9 @@ function getVerifyImg(currentQQID, cap_cd, g_vsig){
 
                 // 显示图片, 同时获取子进程的 pid
                 // linux
-                // var imgCp = cp.exec('display ./verifyImg/' + imgName)
+                var imgCp = cp.exec('display ./verifyImg/' + imgName)
                 // windows
-                var imgCp = cp.exec('start verifyImg/' + imgName)
+                // var imgCp = cp.exec('start verifyImg/' + imgName)
 
                 // 开启输入
                 process.stdin.resume();

@@ -4,13 +4,14 @@
     <title><%= title %></title>
     <link rel='stylesheet' href='/css/bootstrap.min.css' />
     <script src="/js/vue.min.js"></script>
+    <script src="/js/vue-resource.min.js"></script>
   </head>
   <body id="app">
     <form class="form-group" id="form">
-        <input type="text" id="name" name="userQQ" class="form-control" placeholder="请输入qq号">
-        <input type="password" id="password" name="password" class="form-control" placeholder="请输入qq密码">
+        <input type="text" id="newUserQQ" name="userQQ" class="form-control" v-model="newUserQQ" placeholder="请输入qq号">
+        <input type="text" id="newPassword" name="password" class="form-control" v-model="newPassword"  placeholder="请输入qq密码">
     </form>
-    <button class="btn btn-primary" @click="submit()">提交</button>
+    <button class="btn btn-primary" @click="newQQuser()">提交</button>
 
     <h2>爬取的用户信息</h2>
     <table class="table table-striped">
@@ -45,40 +46,53 @@
         el: '#app',
         data: {
          userInfos:[],
+         newUserQQ : "",
+         newPassword : ""
         },
         created: function () {
-          var _this = this;
-          var num = 1;
-          function ajax() {
-            var xhr = new XMLHttpRequest();
-            xhr.open('get', '/list', true);
-            xhr.send(null);
-            xhr.onreadystatechange = function () {
-              if (xhr.readyState == 4) {
-                _this.userInfos = JSON.parse(xhr.responseText);
-              }
-            }
-            console.log(num++)
-          }
-          setInterval(function () {
-            ajax()
-          }, 3000);
+          setInterval(this.getUserInfo, 3000);
         },
         methods: {
-          submit: function () {
-              var xhr = new XMLHttpRequest();
-              var form = document.getElementById('form');
-              xhr.open('post', '/', true);
-              xhr.send(new FormData(form));
-              xhr.onreadystatechange = function () {
-                if (xhr.readyState == 4) {
-                  alert(xhr.responseText)
-                }
-              }
+
+          /**
+           * 新增一个爬虫用户, 实现检查 QQ号 和 密码 的合法性, 并进行提交
+           */
+          newQQuser: function () {
+
+            // 检查新建 QQ号 的表单是否合法
+            if(this.newUserQQ.length < 5 || this.newPassword.length < 5){
+              alert("请填写正确的 QQ号 和 QQ密码 后重试!");
+              return;
+            }
+              
+            var newQQobj = {
+              userQQ : this.newUserQQ,
+              password : this.newPassword
+            }
+
+            this.$http.post("/", newQQobj).then(function(data){
+              alert(data.data)
+            })
           },
+
+          /**
+           * 定时获取当前爬虫的个人档信息, 并保存到 userInfos 中
+           */
+          getUserInfo : function () {
+
+            this.$http.get("/list").then(function(data){
+
+              // 检查返回内容是否为数组
+              if(!(data.data instanceof Array)) return;
+
+              this.userInfos = data.data;
+            })
+
+          }
         }
       })
 
     </script>
   </body>
 </html>
+

@@ -10,9 +10,10 @@ router.get('/', function(req, res, next) {
 });
 
 router.post('/', function(req, res, next) {
+    
     var userObj = {
         'userQQ': req.body.userQQ,
-        'password': req.body.passwrod
+        'password': req.body.password
     };
 
     config.QQ.push(userObj);
