@@ -23,7 +23,16 @@ router.post('/', function(req, res, next) {
 })
 
 router.get('/list', function(req, res, next) {
-    res.send(main.userInfos);
+    var obj = {};
+
+    obj.userInfos = main.userInfos;
+    obj.status = {
+        QQdone : main.QQdone.length,
+        QQNumbers : main.QQNumbers.length
+    };
+    obj.config = config;
+
+    res.send(obj);
 })
 
 router.get("/QQArr", function(req, res, next){
@@ -34,7 +43,12 @@ router.post("/deleteQQ", function(req, res, next){
 
     var deleteIndex = req.body.index;
 
-    delete config.QQ[deleteIndex];
+    // 不能使用以下语句, 会造成 bug
+    // delete config.QQ[deleteIndex]
+    
+    config.QQ[deleteIndex].userQQ = 0;
+    config.QQ[deleteIndex].password = "";
+    config.QQ[deleteIndex].isLogin = 7;
 
     res.send("第 " +　deleteIndex　 + " 号爬虫已删除成功!");
 })
@@ -43,19 +57,32 @@ router.post("/pauseQQ", function(req, res, next){
 
     var pauseIndex = req.body.index;
 
-    if(config.QQ[pauseIndex].isLogin === 2){
-        return res.send("第 " +　pauseIndex　 + " 号账号已经被冻结, 就算你暂停也是没有办法的哦!");
+    switch(config.QQ[pauseIndex].isLogin){
+        case 2 : return res.send("第 " +　pauseIndex　 + " 号账号已经被冻结, 就算你暂停也是没有办法的哦!");
+        case 3 : return res.send("第 " +　pauseIndex　 + " 号账号当前正在登录, 请稍后再试!");
+        case 7 : return res.send("第 " +　pauseIndex　 + " 号账号已被删除, 无法暂停!");
+        case 6 : 
+            config.QQ[pauseIndex].isLogin = 0;
+            return res.send("第 " +　pauseIndex　 + " 号账号已恢复使用!")
+        default : 
+            config.QQ[pauseIndex].isLogin = 6;
+            return res.send("第 " +　pauseIndex　 + " 号账号已暂停使用!")
     }
-
-    if(config.QQ[pauseIndex].isLogin === 1){
-        config.QQ[pauseIndex].isLogin = 6;
-        return res.send("第 " +　pauseIndex　 + " 号账号已暂停使用!")
-    } else if (config.QQ[pauseIndex].isLogin === 6){
-        config.QQ[pauseIndex].isLogin = 0;
-        return res.send("第 " +　pauseIndex　 + " 号账号已恢复使用, 即将进行登录!")
-    }
-
+    
     return res.send("操作失败");
+})
+
+router.post("/runCode", function(req, res, next){
+
+    var evalCode = req.body.code;
+
+    try{
+        eval(evalCode)
+    } catch(e){
+        return res.send("Error : " + e.message);
+    }
+
+    return res.send("代码已成功执行!");
 })
 
 module.exports = router;

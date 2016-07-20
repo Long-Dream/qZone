@@ -6,9 +6,11 @@
     <script src="/js/vue.min.js"></script>
     <script src="/js/vue-resource.min.js"></script>
 </head>
-<body id="app">
+<body id="app" class="col-md-offset-1 col-md-10">
 
-    <h2>当前所有的爬虫一览</h2>
+    <h1 v-if="!allDeathWaring" style="color: red">Warning: 当前所有爬虫均已死亡, 请及时补充!</h1>
+
+    <h2>当前所有的爬虫一览 ( 当前有 <strong>{{runingNum}}</strong>  个爬虫正在运行)</h2>
 
     <table class="table table-striped">
         <thead>
@@ -22,7 +24,8 @@
             </tr>
         </thead>
         <tbody>
-            <tr v-for="QQ in QQArrState">
+            <!-- <tr v-for="QQ in QQArrState" v-if="QQ.isLogin !== '7 (已被人为删除)'"> -->  <!-- 不显示已删除 -->
+            <tr v-for="QQ in QQArrState">    <!-- 显示已删除 -->
                 <td>{{ $index }}</td>
                 <td>{{ QQ.userQQ  }}</td>
                 <td>{{ QQ.password  }}</td>
@@ -39,6 +42,32 @@
         <input type="text" name="password" class="form-control" v-model="newPassword"  placeholder="请输入qq密码">
     </form>
     <button class="btn btn-primary" @click="newQQuser()">提交</button>
+    <br><br>
+
+    <h2>直接执行代码</h2>
+    <form><textarea style="width:100%;height:100px;" v-model="evalCode"></textarea></form>
+    <button class="btn btn-primary" @click="runCode()">提交</button>
+    <br><br>
+
+    <h2>当前爬取情况</h2>
+    <table class="table table-striped">
+        <tbody>
+            <tr>
+                <td>已爬取的QQ号</td>
+                <td>待爬取的QQ号</td>
+                <td>留言板的最大抓取数量</td>
+                <td>说说的最大抓取数量</td>
+                <td>同时进行爬取的爬虫的最大数量</td>
+            </tr>
+            <tr>
+                <td>{{ statusQQdone }}</td>
+                <td>{{ statusQQNumbers }}</td>
+                <td>{{ config.boardMax }}</td>
+                <td>{{ config.shuoMax }}</td>
+                <td>{{ config.maxQQ }}</td>
+            </tr>
+        </tbody>
+    </table>
 
     <h2>爬取的用户信息</h2>
     <table class="table table-striped">
@@ -72,12 +101,17 @@
     var app = new Vue({
         el: '#app',
         data: {
-            userInfos   : [],       // 从后台获取到的当前已爬的个人档的数据
-            QQArr       : [],       // 从后台获取到的爬虫情况
-            newUserQQ   : "",
-            newPassword : "",
+            userInfos       : [],       // 从后台获取到的当前已爬的个人档的数据
+            QQArr           : [],       // 从后台获取到的爬虫情况
+            newUserQQ       : "",       // 与 新增账号 QQ号 绑定
+            newPassword     : "",       // 与 新增账号 密码 绑定
+            evalCode        : "",       // 与 直接执行代码 绑定
 
-            getQQArrTimer : 0,      // 全局　getQQArr　定时器变量
+            statusQQdone    : 0,        // 与 当前爬取情况 已爬取QQ数 绑定
+            statusQQNumbers : 0,        // 与 当前爬取情况 已爬取QQ数 绑定
+            config          : {},       // 与 当前爬取情况 设置 绑定
+
+            getQQArrTimer   : 0,        // 全局　getQQArr　定时器变量
         },
         created: function() {
             this.getUserInfo();
@@ -92,8 +126,8 @@
 
                 this.QQArr.forEach(function(item, index){
 
-                    if(item === null){
-                        arr[index] = {userQQ : "空", password : "空", isLogin : "空"};
+                    if(item.isLogin === 7){
+                        arr[index] = {userQQ : "空", password : "空", isLogin : "7 (已被人为删除)"};
                         return;
                     }
 
@@ -114,6 +148,30 @@
                 })
 
                 return arr;
+            },
+
+            // 当前正在进行爬取的 QQ 号 的数量
+            runingNum : function(){
+
+                var temp = 0;
+
+                this.QQArr.forEach(function(item, index){
+                    if(item.isLogin === 1) temp ++;
+                })
+
+                return temp;
+            },
+
+            // 警告当前是否有爬虫还活着
+            allDeathWaring : function(){
+
+                var temp = 0;
+
+                this.QQArr.forEach(function(item, index){
+                    if(item.isLogin === 1 || item.isLogin === 0 || item.isLogin === 3) temp ++;
+                })
+
+                return temp;
             }
         },
         methods: {
@@ -147,6 +205,9 @@
                 this.$http.post("/", newQQobj).then(function(data) {
                     alert(data.data)
 
+                    this.newUserQQ = "";
+                    this.newPassword = "";
+
                     // 创建后立即刷新列表
                     clearTimeout(this.getQQArrTimer);
                     this.getQQArr();
@@ -161,12 +222,17 @@
                 this.$http.get("/list").then(function(data) {
 
                     // 检查返回内容是否为数组
-                    if (!(data.data instanceof Array)) return;
+                    if (!(data.data.userInfos instanceof Array)) return;
 
-                    this.userInfos = data.data;
+                    this.userInfos = data.data.userInfos;
+
+                    this.statusQQNumbers = data.data.status.QQNumbers;
+                    this.statusQQdone = data.data.status.QQdone;
+
+                    this.config = data.data.config;
                 })
 
-                 this.getQQArrTimer = setTimeout(this.getUserInfo, 3000)
+                 setTimeout(this.getUserInfo, 3000)
 
             },
 
@@ -183,7 +249,7 @@
                     this.QQArr = data.data;
                 })
 
-                setTimeout(this.getQQArr, 3000)
+                this.getQQArrTimer = setTimeout(this.getQQArr, 3000)
             },
 
             /**
@@ -218,6 +284,15 @@
                 // 删除后立即刷新列表
                 clearTimeout(this.getQQArrTimer);
                 this.getQQArr();
+            },
+
+            /**
+             * 直接 eval 执行代码
+             */
+            runCode : function() {
+                this.$http.post("/runCode", {code : this.evalCode}).then(function(data){
+                   alert(data.data);
+                })
             }
         }
     })

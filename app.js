@@ -26,7 +26,10 @@ var flags = {
 
     // 是否已经准备好的 flag  目前准备好的条件是, 已从数据库中读取到 QQdone 的数据,  已从数据库中读取到 QQNumbers 的数据
     // 0 为已准备好, 大于 0 为未准备好
-    readyFlag : 2
+    readyFlag : 2,
+
+    // 最近一次的验证码的图片名称
+    verifyImg : ""
 }
 
 // 通用的HTTP请求头(不含cookie)
@@ -150,17 +153,24 @@ function main(){
         // 先定义一个已经登录好的 QQID 的数组
         var QQlist = [];
 
+        // 通过此变量限制同时进行的最大爬虫数
+        var temp = config.maxQQ;
+
         // 检查 QQ 列表, 如果没有登录, 就进行登录; 如果已经登录, 就将其 ID 推进数组
         config.QQ.forEach(function(item, index){
-            if(!item.isLogin){
+            if(item.isLogin === 1 && temp){
+                QQlist.push(index);
+                temp--;
+            } else if(item.isLogin === 3 && temp){
+                temp--;
+            } else if(item.isLogin === 0 && temp){
                 console.log("QQ 第 " + index + " 号 ,QQ 号 " + item.userQQ + " 准备登录!");
 
                 // 使 isLogin 为 3 意为正在登录
                 config.QQ[index].isLogin = 3;
 
                 QQLogin(index);
-            } else if(item.isLogin === 1){
-                QQlist.push(index);
+                temp--;
             }
         })
 
@@ -773,8 +783,8 @@ function log(currentQQID, msg){
         2151830981----h572wz6c          已冻结
     7月19日 购买
         2674889378----joryyqogaf        已冻结
-        2460545451----mssdvcvhft 
-        2675085659----shaashcexv 
+        2460545451----mssdvcvhft        已冻结
+        2675085659----shaashcexv
         2685867114----civscnkifq 
         2670795177----zhxhitromx
 

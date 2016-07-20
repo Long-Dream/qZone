@@ -117,7 +117,12 @@ function getVerifyMsg(currentQQID){
                 console.log(verifyArr);
 
                 // 不应该走到这里
-                throw new Error("一定是哪里出错了!");
+                // 目前原因也只有账号不是数字的原因了....所以输出用户名和密码错误吧
+                // throw new Error("一定是哪里出错了!");
+                config.QQ[currentQQID].isLogin = 4;
+                log(currentQQID, "用户名貌似不是数字?")
+
+
             })
         })
 }
@@ -200,6 +205,9 @@ function getVerifyImg(currentQQID, cap_cd, g_vsig){
                 // 此时禁止所有请求
                 main.flags.verifyFlag += 1;
                 main.flags.verifyNum = currentQQID;
+
+                // 同时保存验证码的图片
+                main.flags.verifyImg = imgName;
 
                 console.log("\n\n")
                 log(currentQQID, "验证码图片已经保存, 请打开" + './verifyImg/' + imgName +　' , 并在下方输入验证码: ')
