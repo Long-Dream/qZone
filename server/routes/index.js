@@ -31,6 +31,7 @@ router.get('/list', function(req, res, next) {
         QQNumbers : main.QQNumbers.length
     };
     obj.config = config;
+    
 
     res.send(obj);
 })
@@ -68,7 +69,7 @@ router.post("/pauseQQ", function(req, res, next){
             config.QQ[pauseIndex].isLogin = 6;
             return res.send("第 " +　pauseIndex　 + " 号账号已暂停使用!")
     }
-    
+
     return res.send("操作失败");
 })
 

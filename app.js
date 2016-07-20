@@ -785,8 +785,8 @@ function log(currentQQID, msg){
         2674889378----joryyqogaf        已冻结
         2460545451----mssdvcvhft        已冻结
         2675085659----shaashcexv
-        2685867114----civscnkifq 
-        2670795177----zhxhitromx
+        2685867114----civscnkifq        已冻结
+        2670795177----zhxhitromx        已冻结
 
 
 部分数据的请求地址: http://r.qzone.qq.com/cgi-bin/main_page_cgi?uin=616772663&param=3_616772663_0%7C8_8_3095623630_0_1_0_0_1%7C15%7C16&g_tk=320979203
