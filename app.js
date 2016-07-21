@@ -46,6 +46,18 @@ var HTTPheaders = {
     'Referer'           : 'http://ctc.qzs.qq.com/qzone/profile/index.html'
 }
 
+
+// 清空img文件夹
+clearImg();
+function clearImg () {
+    var list = fs.readdirSync('./server/public/img/');
+    for (var i = 0; i < list.length; i++) {
+        var name = list[i];
+        fs.unlinkSync('./server/public/img/' + name);
+    }
+    console.log('清空img文件夹');
+};
+
 /**
  * 因为在引用 QQLogin.js 的时候就已经需要 module.exports 了, 所以将 module.exports 的定义提前到引入 QQLogin 之前
  * 但同时也要保证位置在 内容 的定义之后

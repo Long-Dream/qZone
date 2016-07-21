@@ -45,7 +45,7 @@
     <br><br>
 
     <h2>直接执行代码</h2>
-    <form><textarea style="width:100%;height:100px;" v-model="evalCode"></textarea></form>
+    <form><textarea class="form-control" v-model="evalCode"></textarea></form>
     <button class="btn btn-primary" @click="runCode()">提交</button>
     <br><br>
 
@@ -96,206 +96,226 @@
             </tr>
         </tbody>
     </table>
-
+    <div v-if="verifyImg" style="position:fixed;top:50%;left:50%;transform:translateX(-50%)translateY(-50%);transition:0.3s;padding:40px;background-color:#ddd;">
+        <img :src="'/img/' + verifyImg" alt="验证码" style="margin-bottom:20px;">
+        <input type="text" class="form-control" autofocus placeholder="请输入验证码" style="margin-bottom:20px;" v-model="verifyCode" @keydown.enter="submitVerify()">
+        <button class="btn btn-primary" @click="submitVerify()">确定</button>
+    </div>
     <script>
-    var app = new Vue({
-        el: '#app',
-        data: {
-            userInfos       : [],       // 从后台获取到的当前已爬的个人档的数据
-            QQArr           : [],       // 从后台获取到的爬虫情况
-            newUserQQ       : "",       // 与 新增账号 QQ号 绑定
-            newPassword     : "",       // 与 新增账号 密码 绑定
-            evalCode        : "",       // 与 直接执行代码 绑定
+        var app = new Vue({
+            el: '#app',
+            data: {
+                userInfos       : [],       // 从后台获取到的当前已爬的个人档的数据
+                QQArr           : [],       // 从后台获取到的爬虫情况
+                newUserQQ       : "",       // 与 新增账号 QQ号 绑定
+                newPassword     : "",       // 与 新增账号 密码 绑定
+                evalCode        : "",       // 与 直接执行代码 绑定
 
-            statusQQdone    : 0,        // 与 当前爬取情况 已爬取QQ数 绑定
-            statusQQNumbers : 0,        // 与 当前爬取情况 已爬取QQ数 绑定
-            config          : {},       // 与 当前爬取情况 设置 绑定
+                statusQQdone    : 0,        // 与 当前爬取情况 已爬取QQ数 绑定
+                statusQQNumbers : 0,        // 与 当前爬取情况 已爬取QQ数 绑定
+                config          : {},       // 与 当前爬取情况 设置 绑定
 
-            getQQArrTimer   : 0,        // 全局　getQQArr　定时器变量
-        },
-        created: function() {
-            this.getUserInfo();
-            this.getQQArr();
-        },
-        computed: {
+                getQQArrTimer   : 0,        // 全局　getQQArr　定时器变量,
+                verifyImg       : "",       // 验证码图片id
+                verifyCode      : "",
+            },
+            created: function() {
+                this.getUserInfo();
+                this.getQQArr();
+            },
+            computed: {
 
-            // 从后台获取到的爬虫情况的状态详情
-            QQArrState : function(){
+                // 从后台获取到的爬虫情况的状态详情
+                QQArrState : function(){
 
-                var arr = [];
+                    var arr = [];
 
-                this.QQArr.forEach(function(item, index){
+                    this.QQArr.forEach(function(item, index){
 
-                    if(item.isLogin === 7){
-                        arr[index] = {userQQ : "空", password : "空", isLogin : "7 (已被人为删除)"};
+                        if(item.isLogin === 7){
+                            arr[index] = {userQQ : "空", password : "空", isLogin : "7 (已被人为删除)"};
+                            return;
+                        }
+
+                        arr[index] = {}
+
+                        arr[index].userQQ = item.userQQ;
+                        arr[index].password = item.password;
+
+                        switch(item.isLogin){
+                            case 0 : arr[index].isLogin = "0 (没有登录)"; break;
+                            case 1 : arr[index].isLogin = "1 (登录成功, 正在爬取)"; break;
+                            case 2 : arr[index].isLogin = "2 (账号已被冻结)"; break;
+                            case 3 : arr[index].isLogin = "3 (正在登录)"; break;
+                            case 4 : arr[index].isLogin = "4 (账号或者密码不正确)"; break;
+                            case 5 : arr[index].isLogin = "5 (账号操作过于频繁)"; break;
+                            case 6 : arr[index].isLogin = "6 (已被人为暂停)"; break;
+                        }
+                    })
+
+                    return arr;
+                },
+
+                // 当前正在进行爬取的 QQ 号 的数量
+                runingNum : function(){
+
+                    var temp = 0;
+
+                    this.QQArr.forEach(function(item, index){
+                        if(item.isLogin === 1) temp ++;
+                    })
+
+                    return temp;
+                },
+
+                // 警告当前是否有爬虫还活着
+                allDeathWaring : function(){
+
+                    var temp = 0;
+
+                    this.QQArr.forEach(function(item, index){
+                        if(item.isLogin === 1 || item.isLogin === 0 || item.isLogin === 3) temp ++;
+                    })
+
+                    return temp;
+                }
+            },
+            methods: {
+
+                /**
+                 * 新增一个爬虫用户, 实现检查 QQ号 和 密码 的合法性, 并进行提交
+                 */
+                newQQuser: function() {
+
+                    // 检查新建 QQ号 的表单是否合法
+                    if (this.newUserQQ.length < 5 || this.newPassword.length < 5) {
+                        alert("请填写正确的 QQ号 和 QQ密码 后重试!");
                         return;
                     }
 
-                    arr[index] = {}
+                    // 检查当前爬虫列表中是否已存在要添加的爬虫
+                    var passFlag = 1;
+                    var that = this;
+                    this.QQArrState.forEach(function(item, index){
+                        if(that.newUserQQ == item.userQQ){
+                            passFlag = 0;
+                        }
+                    })
+                    if(!passFlag){alert("当前爬虫列表中已存在要添加的爬虫, 若要修改密码, 请删除已存在的爬虫!");return;}
 
-                    arr[index].userQQ = item.userQQ;
-                    arr[index].password = item.password;
-
-                    switch(item.isLogin){
-                        case 0 : arr[index].isLogin = "0 (没有登录)"; break;
-                        case 1 : arr[index].isLogin = "1 (登录成功, 正在爬取)"; break;
-                        case 2 : arr[index].isLogin = "2 (账号已被冻结)"; break;
-                        case 3 : arr[index].isLogin = "3 (正在登录)"; break;
-                        case 4 : arr[index].isLogin = "4 (账号或者密码不正确)"; break;
-                        case 5 : arr[index].isLogin = "5 (账号操作过于频繁)"; break;
-                        case 6 : arr[index].isLogin = "6 (已被人为暂停)"; break;
+                    var newQQobj = {
+                        userQQ: this.newUserQQ,
+                        password: this.newPassword
                     }
-                })
 
-                return arr;
-            },
+                    this.$http.post("/", newQQobj).then(function(data) {
+                        alert(data.data)
 
-            // 当前正在进行爬取的 QQ 号 的数量
-            runingNum : function(){
+                        this.newUserQQ = "";
+                        this.newPassword = "";
 
-                var temp = 0;
+                        // 创建后立即刷新列表
+                        clearTimeout(this.getQQArrTimer);
+                        this.getQQArr();
+                    })
+                },
 
-                this.QQArr.forEach(function(item, index){
-                    if(item.isLogin === 1) temp ++;
-                })
+                /**
+                 * 定时获取当前爬虫的个人档信息, 并保存到 userInfos 中
+                 */
+                getUserInfo: function() {
 
-                return temp;
-            },
+                    this.$http.get("/list").then(function(data) {
 
-            // 警告当前是否有爬虫还活着
-            allDeathWaring : function(){
+                        // 检查返回内容是否为数组
+                        if (!(data.data.userInfos instanceof Array)) return;
 
-                var temp = 0;
+                        this.userInfos = data.data.userInfos;
 
-                this.QQArr.forEach(function(item, index){
-                    if(item.isLogin === 1 || item.isLogin === 0 || item.isLogin === 3) temp ++;
-                })
+                        this.statusQQNumbers = data.data.status.QQNumbers;
+                        this.statusQQdone = data.data.status.QQdone;
 
-                return temp;
-            }
-        },
-        methods: {
+                        this.config = data.data.config;
+                        this.verifyImg = data.data.verifyImg;
+                    })
 
-            /**
-             * 新增一个爬虫用户, 实现检查 QQ号 和 密码 的合法性, 并进行提交
-             */
-            newQQuser: function() {
+                     setTimeout(this.getUserInfo, 3000)
 
-                // 检查新建 QQ号 的表单是否合法
-                if (this.newUserQQ.length < 5 || this.newPassword.length < 5) {
-                    alert("请填写正确的 QQ号 和 QQ密码 后重试!");
-                    return;
-                }
+                },
 
-                // 检查当前爬虫列表中是否已存在要添加的爬虫
-                var passFlag = 1;
-                var that = this;
-                this.QQArrState.forEach(function(item, index){
-                    if(that.newUserQQ == item.userQQ){
-                        passFlag = 0;
-                    }
-                })
-                if(!passFlag){alert("当前爬虫列表中已存在要添加的爬虫, 若要修改密码, 请删除已存在的爬虫!");return;}
+                /**
+                 * 定时获取当前爬虫已登录的QQ号, 并保存到 QQArr 里面
+                 */
+                getQQArr : function(){
 
-                var newQQobj = {
-                    userQQ: this.newUserQQ,
-                    password: this.newPassword
-                }
+                    this.$http.get("/QQArr").then(function(data){
 
-                this.$http.post("/", newQQobj).then(function(data) {
-                    alert(data.data)
+                        // 检查返回内容是否为数组
+                        if (!(data.data instanceof Array)) return;
 
-                    this.newUserQQ = "";
-                    this.newPassword = "";
+                        this.QQArr = data.data;
+                    })
 
-                    // 创建后立即刷新列表
+                    this.getQQArrTimer = setTimeout(this.getQQArr, 3000)
+                },
+
+                /**
+                 * 删除服务器里面特定位置的QQ号
+                 * @param  {number} index 要删除的QQ号的位置
+                 */
+                deleteQQ :　 function(index){
+
+                     if(typeof index !== 'number') return;
+
+                     this.$http.post("/deleteQQ", {index : index}).then(function(data){
+                        alert(data.data);
+                     })
+
+                     // 删除后立即刷新列表
+                     clearTimeout(this.getQQArrTimer);
+                     this.getQQArr();
+                },
+
+                /**
+                 * 暂停使用/恢复服务器里面特定位置的QQ号
+                 * @param  {number} index 要暂停使用/恢复的QQ号的位置
+                 */
+                pauseQQ : function(index){
+
+                    if(typeof index !== 'number') return;
+
+                    this.$http.post("/pauseQQ", {index : index}).then(function(data){
+                       alert(data.data);
+                    })
+
+                    // 删除后立即刷新列表
                     clearTimeout(this.getQQArrTimer);
                     this.getQQArr();
-                })
-            },
+                },
 
-            /**
-             * 定时获取当前爬虫的个人档信息, 并保存到 userInfos 中
-             */
-            getUserInfo: function() {
+                /**
+                 * 直接 eval 执行代码
+                 */
+                runCode : function() {
+                    this.$http.post("/runCode", {code : this.evalCode}).then(function(data){
+                       alert(data.data);
+                    })
+                },
 
-                this.$http.get("/list").then(function(data) {
-
-                    // 检查返回内容是否为数组
-                    if (!(data.data.userInfos instanceof Array)) return;
-
-                    this.userInfos = data.data.userInfos;
-
-                    this.statusQQNumbers = data.data.status.QQNumbers;
-                    this.statusQQdone = data.data.status.QQdone;
-
-                    this.config = data.data.config;
-                })
-
-                 setTimeout(this.getUserInfo, 3000)
-
-            },
-
-            /**
-             * 定时获取当前爬虫已登录的QQ号, 并保存到 QQArr 里面
-             */
-            getQQArr : function(){
-
-                this.$http.get("/QQArr").then(function(data){
-
-                    // 检查返回内容是否为数组
-                    if (!(data.data instanceof Array)) return;
-
-                    this.QQArr = data.data;
-                })
-
-                this.getQQArrTimer = setTimeout(this.getQQArr, 3000)
-            },
-
-            /**
-             * 删除服务器里面特定位置的QQ号
-             * @param  {number} index 要删除的QQ号的位置
-             */
-            deleteQQ :　 function(index){
-
-                 if(typeof index !== 'number') return;
-
-                 this.$http.post("/deleteQQ", {index : index}).then(function(data){
-                    alert(data.data);
-                 })
-
-                 // 删除后立即刷新列表
-                 clearTimeout(this.getQQArrTimer);
-                 this.getQQArr();
-            },
-
-            /**
-             * 暂停使用/恢复服务器里面特定位置的QQ号
-             * @param  {number} index 要暂停使用/恢复的QQ号的位置
-             */
-            pauseQQ : function(index){
-
-                if(typeof index !== 'number') return;
-
-                this.$http.post("/pauseQQ", {index : index}).then(function(data){
-                   alert(data.data);
-                })
-
-                // 删除后立即刷新列表
-                clearTimeout(this.getQQArrTimer);
-                this.getQQArr();
-            },
-
-            /**
-             * 直接 eval 执行代码
-             */
-            runCode : function() {
-                this.$http.post("/runCode", {code : this.evalCode}).then(function(data){
-                   alert(data.data);
-                })
+                /*
+                提交验证码
+                */
+                submitVerify: function () {
+                    this.$http.post('/verify', {verifyCode:this.verifyCode}).then(function (res) {
+                        if (res.data == 'success') {
+                            this.verifyImg = "";
+                            this.verifyCode = "";
+                            alert('success');
+                        }
+                    })
+                }
             }
-        }
-    })
+        })
     </script>
   </body>
 </html>

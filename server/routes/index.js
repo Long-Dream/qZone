@@ -10,7 +10,7 @@ router.get('/', function(req, res, next) {
 });
 
 router.post('/', function(req, res, next) {
-    
+
     var userObj = {
         'userQQ': req.body.userQQ,
         'password': req.body.password,
@@ -31,7 +31,7 @@ router.get('/list', function(req, res, next) {
         QQNumbers : main.QQNumbers.length
     };
     obj.config = config;
-    
+    obj.verifyImg = main.flags.verifyImg;
 
     res.send(obj);
 })
@@ -46,7 +46,7 @@ router.post("/deleteQQ", function(req, res, next){
 
     // 不能使用以下语句, 会造成 bug
     // delete config.QQ[deleteIndex]
-    
+
     config.QQ[deleteIndex].userQQ = 0;
     config.QQ[deleteIndex].password = "";
     config.QQ[deleteIndex].isLogin = 7;
@@ -62,10 +62,10 @@ router.post("/pauseQQ", function(req, res, next){
         case 2 : return res.send("第 " +　pauseIndex　 + " 号账号已经被冻结, 就算你暂停也是没有办法的哦!");
         case 3 : return res.send("第 " +　pauseIndex　 + " 号账号当前正在登录, 请稍后再试!");
         case 7 : return res.send("第 " +　pauseIndex　 + " 号账号已被删除, 无法暂停!");
-        case 6 : 
+        case 6 :
             config.QQ[pauseIndex].isLogin = 0;
             return res.send("第 " +　pauseIndex　 + " 号账号已恢复使用!")
-        default : 
+        default :
             config.QQ[pauseIndex].isLogin = 6;
             return res.send("第 " +　pauseIndex　 + " 号账号已暂停使用!")
     }
@@ -84,6 +84,13 @@ router.post("/runCode", function(req, res, next){
     }
 
     return res.send("代码已成功执行!");
+})
+
+router.post('/verify', function (req, res, next) {
+    var verifyCode = req.body.verifyCode;
+    process.stdin.emit('data', verifyCode);
+    main.flags.verifyImg = "";
+    res.send('success')
 })
 
 module.exports = router;

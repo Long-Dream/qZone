@@ -190,7 +190,7 @@ function getVerifyImg(currentQQID, cap_cd, g_vsig){
 
             var imgName = 'ID' + currentQQID + '_' + new Date().toLocaleString().replace(/:/g, "").replace(/-/g, "").replace(/ /g, "_") + '.jpg'
 
-            fs.writeFile('./verifyImg/' + imgName, data.body, function(err){
+            fs.writeFile('./server/public/img/' + imgName, data.body, function(err){
                 if(err) throw err;      // 保存验证码图片时出现问题!
 
                 // 因为请求也有延时, 所以此时再次判断是否有正在请求验证码
@@ -210,11 +210,11 @@ function getVerifyImg(currentQQID, cap_cd, g_vsig){
                 main.flags.verifyImg = imgName;
 
                 console.log("\n\n")
-                log(currentQQID, "验证码图片已经保存, 请打开" + './verifyImg/' + imgName +　' , 并在下方输入验证码: ')
+                log(currentQQID, "验证码图片已经保存, 请打开" + './server/public/img/' + imgName +　' , 并在下方输入验证码: ')
 
                 // 显示图片, 同时获取子进程的 pid
                 // linux
-                var imgCp = cp.exec('display ./verifyImg/' + imgName)
+                // var imgCp = cp.exec('display ./verifyImg/' + imgName)
                 // windows
                 // var imgCp = cp.exec('start verifyImg/' + imgName)
 
