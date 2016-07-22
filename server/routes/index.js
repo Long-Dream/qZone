@@ -106,13 +106,28 @@ router.post("/stopAll", function (req, res, next) {
 router.post("/startAll", function (req, res, next) {
 
     var state = req.body.state;
-    
+
     var result = main.startMain(state);
     switch(result){
         case -1 : return res.send("操作失败, 目前爬虫仍然在运行之中");
         case  0 : return res.send("已成功恢复所有爬虫的运行");
         default : return res.send("post('/startMain') 未知错误");
     }
+})
+
+router.post("/setQQmax", function (req, res, next) {
+
+    var QQmaxStr = req.body.QQmax;
+
+    var QQmaxNum = parseInt(QQmaxStr);
+
+    if(QQmaxNum > 0 && QQmaxNum < 11){
+        config.maxQQ = QQmaxNum;
+        return res.send("同时进行爬取的爬虫的最大数量已成功设置为 " + QQmaxNum + " 个!");
+    } else {
+        return res.send("参数错误!");
+    }
+
 })
 
 module.exports = router;

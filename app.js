@@ -101,7 +101,7 @@ setTimeout(saveQQNumbers, config.saveQQNumbersTime);
 function main(){
 
     if(flags.QQstate === -1) {
-        return console.log("这里一定是出了什么 bug !");
+        return /*console.log("这里一定是出了什么 bug !")*/;
     }
 
     // 每隔一段时间执行一次, 以防被 QQ空间 反爬程序盯上
@@ -198,6 +198,11 @@ function main(){
 
                 QQLogin(index);
                 temp--;
+
+            // 此处, 如果爬虫在运行过程中最大同时运行的爬虫数被人为降低到已运行爬虫数之下, 则将多出来的退出登录
+            } else if(item.isLogin === 1 && !temp){
+                config.QQ[index].isLogin = 0;
+                jsonCookie[index] = {};
             }
         })
 
@@ -728,10 +733,13 @@ function startMain(state){
  */
 function clearMain(){
 
+    var canContinue = 1;
+
     // 此函数不允许在有函数进行登录的过程中运行
     config.QQ.forEach(function(item, index){
-        if(item.isLogin === 3) return -1;
+        if(item.isLogin === 3) canContinue = 0;
     })
+    if(!canContinue){return -1}
 
     // 将所有正在运行的爬虫终止登录, 以及将所有等待验证码的爬虫终止登录
     config.QQ.forEach(function(item, index){
@@ -865,11 +873,16 @@ function log(currentQQID, msg){
         2685867114----civscnkifq        已冻结
         2670795177----zhxhitromx        已冻结
     7月22日 购买
-        2037546781----zjie0a4685b 
-        3235979057----lka3ufxxxpm8 
-        2145535489----vg4i1qcu 
-        3158576792----lnnj35novtnbl 
-        2168636681----ep9ut33n34hlb
+        2037546781----zjie0a4685b       已冻结
+        3235979057----lka3ufxxxpm8      买下的时候就冻结了
+        2145535489----vg4i1qcu          已冻结
+        3158576792----lnnj35novtnbl     买下的时候就冻结了
+        2168636681----ep9ut33n34hlb     买下的时候就冻结了
+        2966395180----ssssqqqqqq 
+        2634527959----az92rvfu 
+        2967398314----xxww777888 
+        2136533283----xxww777888 
+        2086803170----ssssqqqqqq
 
 部分数据的请求地址: http://r.qzone.qq.com/cgi-bin/main_page_cgi?uin=616772663&param=3_616772663_0%7C8_8_3095623630_0_1_0_0_1%7C15%7C16&g_tk=320979203
     其中 module3 里面是 最近访客

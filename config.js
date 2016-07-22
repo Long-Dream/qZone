@@ -9,17 +9,19 @@ var config     = {
         {userQQ      : 2037546781, password    : 'zjie0a4685b', isLogin     : 0 },
         {userQQ      : 3235979057, password    : 'lka3ufxxxpm8', isLogin     : 0 },
         {userQQ      : 2145535489, password    : 'vg4i1qcu', isLogin     : 0 },
+        {userQQ      : 3158576792, password    : 'lnnj35novtnbl', isLogin     : 0 },
+        {userQQ      : 2168636681, password    : 'ep9ut33n34hlb', isLogin     : 0 },
     ],
 
     boardNum            : 20,     // 留言板每次抓取的数量
     boardMax            : 20,     // 留言板的最大抓取数量
     shuoNum             : 40,     // 说说每次抓取的数量
     shuoMax             : 40,    // 说说的最大抓取数量
-    timeout             : 3000,   // 主函数两次爬取之间的间隔
+    timeout             : 10000,   // 主函数两次爬取之间的间隔
     getTimeout          : 7000,   // 请求的超时时间
     saveQQNumbersTime   : 30000,   // 存储 QQNumbers 的时间间隔
     timeoutNum          : 3,       // 若请求超时, 进行重试的次数
-    maxQQ               : 2,        // 同时进行爬取的爬虫的最大数量
+    maxQQ               : 1,        // 同时进行爬取的爬虫的最大数量
 
     // 数据库的名称
     dbName      : "Qzone"

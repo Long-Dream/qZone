@@ -25,7 +25,7 @@
         </thead>
         <tbody>
             <!-- <tr v-for="QQ in QQArrState" v-if="QQ.isLogin !== '7 (已被人为删除)'"> -->  <!-- 不显示已删除 -->
-            <tr v-for="QQ in QQArrState">    <!-- 显示已删除 -->
+            <tr v-for="QQ in QQArrState" v-bind:class="{'success' : QQ.isLogin === '1 (登录成功, 正在爬取)', 'info' : QQ.isLogin === '2 (账号已被冻结)'}">    <!-- 显示已删除 -->
                 <td>{{ $index }}</td>
                 <td>{{ QQ.userQQ  }}</td>
                 <td>{{ QQ.password  }}</td>
@@ -48,6 +48,24 @@
     <div class="btn btn-warning" @click=stopAll()>停止爬虫运行</div>
     <div class="btn btn-primary" @click=startAll(1)>开始正常爬取</div>
     <div class="btn btn-info"    @click=startAll(2)>开始无阻塞爬取</div>
+    <br>
+    <br>
+    <label>设置同时进行爬取的爬虫的最大数量</label>
+    <select v-model="setMaxNum">
+        <option>请选择</option>
+        <option>1</option>
+        <option>2</option>
+        <option>3</option>
+        <option>4</option>
+        <option>5</option>
+        <option>6</option>
+        <option>7</option>
+        <option>8</option>
+        <option>9</option>
+        <option>10</option>
+    </select>
+    <div class="btn btn-success" @click=setQQmax()>设置</div>
+    <br><br>
 
     <h2>当前爬取情况</h2>
     <table class="table table-striped">
@@ -123,6 +141,7 @@
                 statusQQdone    : 0,        // 与 当前爬取情况 已爬取QQ数 绑定
                 statusQQNumbers : 0,        // 与 当前爬取情况 已爬取QQ数 绑定
                 config          : {},       // 与 当前爬取情况 设置 绑定
+                setMaxNum       : "请选择",  // 与 当前爬取情况 设置最大数量 绑定
 
                 getQQArrTimer   : 0,        // 全局　getQQArr　定时器变量,
                 verifyImg       : "",       // 验证码图片id
@@ -361,6 +380,23 @@
                        alert(data.data);
                     })
                 },
+
+                /**
+                 * 设置 同时进行爬取的爬虫的最大数量 的函数
+                 */
+                setQQmax : function(){
+
+                    var temp = parseInt(this.setMaxNum);
+
+                    if(!(temp > 0 && temp < 11)){
+                        alert("请检查参数后再进行提交!");
+                        return;
+                    }
+
+                    this.$http.post("/setQQmax", {QQmax : this.setMaxNum}).then(function(data){
+                       alert(data.data);
+                    })
+                }
             }
         })
     </script>
