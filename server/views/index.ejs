@@ -44,15 +44,16 @@
     <button class="btn btn-primary" @click="newQQuser()">提交</button>
     <br><br>
 
-    <h2>直接执行代码</h2>
-    <form><textarea class="form-control" v-model="evalCode"></textarea></form>
-    <button class="btn btn-primary" @click="runCode()">提交</button>
-    <br><br>
+    <h2>爬虫管理</h2>
+    <div class="btn btn-warning" @click=stopAll()>停止爬虫运行</div>
+    <div class="btn btn-primary" @click=startAll(1)>开始正常爬取</div>
+    <div class="btn btn-info"    @click=startAll(2)>开始无阻塞爬取</div>
 
     <h2>当前爬取情况</h2>
     <table class="table table-striped">
         <tbody>
             <tr>
+                <td>当前爬虫状态</td>
                 <td>已爬取的QQ号</td>
                 <td>待爬取的QQ号</td>
                 <td>留言板的最大抓取数量</td>
@@ -60,6 +61,7 @@
                 <td>同时进行爬取的爬虫的最大数量</td>
             </tr>
             <tr>
+                <td>{{ QQstate }}</td>
                 <td>{{ statusQQdone }}</td>
                 <td>{{ statusQQNumbers }}</td>
                 <td>{{ config.boardMax }}</td>
@@ -68,6 +70,12 @@
             </tr>
         </tbody>
     </table>
+    <br><br>
+
+    <h2>直接执行代码</h2>
+    <form><textarea class="form-control" v-model="evalCode"></textarea></form>
+    <button class="btn btn-primary" @click="runCode()">提交</button>
+    <br><br>
 
     <h2>爬取的用户信息</h2>
     <table class="table table-striped">
@@ -111,13 +119,15 @@
                 newPassword     : "",       // 与 新增账号 密码 绑定
                 evalCode        : "",       // 与 直接执行代码 绑定
 
+                QQstateNum      : -1,       // 与 当前爬取情况 状态 相关
                 statusQQdone    : 0,        // 与 当前爬取情况 已爬取QQ数 绑定
                 statusQQNumbers : 0,        // 与 当前爬取情况 已爬取QQ数 绑定
                 config          : {},       // 与 当前爬取情况 设置 绑定
 
                 getQQArrTimer   : 0,        // 全局　getQQArr　定时器变量,
                 verifyImg       : "",       // 验证码图片id
-                verifyCode      : "",
+                verifyCode      : "",       // 与 验证码输入框 绑定,
+
             },
             created: function() {
                 this.getUserInfo();
@@ -150,6 +160,7 @@
                             case 4 : arr[index].isLogin = "4 (账号或者密码不正确)"; break;
                             case 5 : arr[index].isLogin = "5 (账号操作过于频繁)"; break;
                             case 6 : arr[index].isLogin = "6 (已被人为暂停)"; break;
+                            case 8 : arr[index].isLogin = "8 (因有验证码的缘故, 已暂停使用)"; break;
                         }
                     })
 
@@ -176,6 +187,21 @@
                     this.QQArr.forEach(function(item, index){
                         if(item.isLogin === 1 || item.isLogin === 0 || item.isLogin === 3) temp ++;
                     })
+
+                    return temp;
+                },
+
+                // 与 当前爬取情况 状态 绑定
+                QQstate : function(){
+
+                    var temp = "";
+
+                    switch(this.QQstateNum) {
+                        case -1  : temp = (this.QQstateNum + " : 爬虫已终止");break;
+                        case  1  : temp = (this.QQstateNum + " : 爬虫正常运行");break;
+                        case  2  : temp = (this.QQstateNum + " : 爬虫无阻塞运行");break;
+                        default  : temp = (this.QQstateNum + " : 未知参数");break;
+                    }
 
                     return temp;
                 }
@@ -237,6 +263,8 @@
 
                         this.config = data.data.config;
                         this.verifyImg = data.data.verifyImg;
+
+                        this.QQstateNum = data.data.QQstateNum;
                     })
 
                      setTimeout(this.getUserInfo, 3000)
@@ -302,18 +330,37 @@
                     })
                 },
 
-                /*
-                提交验证码
-                */
+                /**
+                 * 提交验证码
+                 */
                 submitVerify: function () {
                     this.$http.post('/verify', {verifyCode:this.verifyCode}).then(function (res) {
                         if (res.data == 'success') {
                             this.verifyImg = "";
                             this.verifyCode = "";
-                            alert('success');
+                            alert('服务器已收到验证码, 正在提交...');
                         }
                     })
-                }
+                },
+
+                /**
+                 * 停止当前所有爬虫的运行
+                 */
+                stopAll : function() {
+                    this.$http.post("/stopAll").then(function(data){
+                       alert(data.data);
+                    })
+                },
+
+                /**
+                 * 恢复所有的爬虫的运行
+                 * @param  {number} state 开始进行爬取的方式, 1 代表 正常爬取,  2 代表 无阻塞爬取
+                 */
+                startAll : function(state) {
+                    this.$http.post("/startAll", {state : state}).then(function(data){
+                       alert(data.data);
+                    })
+                },
             }
         })
     </script>

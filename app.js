@@ -13,7 +13,7 @@ var QQEvents     = {};    // 事件列表, 每个元素都是对象, 有三个�
 
 var QQtorrent    = [470501491];    // 种子 QQ 号, 星星之火, 可以燎原
 
-var userInfos = [];     // 爬取的用户信息
+var userInfos    = [];     // 爬取的用户信息
 
 var flags = {
 
@@ -29,7 +29,15 @@ var flags = {
     readyFlag : 2,
 
     // 最近一次的验证码的图片名称
-    verifyImg : ""
+    verifyImg : "",
+
+    // 爬虫程序的定时器的ID
+    mainTimer : -1,
+
+    // 当前爬虫状态
+    // -1 代表 停止爬取   1 代表 正常爬取    2 代表无阻塞地爬取
+    // 初始化先为 1 ,代表正常爬取
+    QQstate : -1
 }
 
 // 通用的HTTP请求头(不含cookie)
@@ -70,27 +78,34 @@ module.exports = {
     json2cookies    : json2cookies,
     QQdone          : QQdone,
     QQNumbers       : QQNumbers,
-    userInfos       : userInfos
+    userInfos       : userInfos,
+    clearMain       : clearMain,
+    startMain       : startMain
 }
 
 var QQLogin    = require('./QQLogin.js')
 var db         = require("./db/db.js");
 
-var www = require('./server/bin/www');
+var www        = require('./server/bin/www');
 
 // Panzer Vor !!
 main();
+
+// 定时存储所有 QQNumbers
+setTimeout(saveQQNumbers, config.saveQQNumbersTime);
+
 
 /**
  * 主函数, 进行爬虫程序的调度
  */
 function main(){
 
+    if(flags.QQstate === -1) {
+        return console.log("这里一定是出了什么 bug !");
+    }
+
     // 每隔一段时间执行一次, 以防被 QQ空间 反爬程序盯上
     mainStep();
-
-    // 定时存储所有 QQNumbers
-    setTimeout(saveQQNumbers, config.saveQQNumbersTime);
 
     /**
      * 主函数的单步函数
@@ -150,7 +165,7 @@ function main(){
         })
 
         // 进行链式反应
-        setTimeout(function(){mainStep();}, config.timeout)
+        flags.mainTimer = setTimeout(function(){mainStep();}, config.timeout)
     }
 
 
@@ -279,20 +294,6 @@ function main(){
         })
     }
 
-    /**
-     * 定时将 QQNumbers 存入数据库中, 方便下次程序运行的时候调用
-     */
-    function saveQQNumbers(){
-
-        var obj = {name : "QQNumbers", QQNumbers : QQNumbers};
-
-        db.collection("QQNumbers").update({name : "QQNumbers"}, {"$set" : {"QQNumbers" : QQNumbers}}, true, function(err){
-            if(err) throw err;
-            console.log("Success!")
-
-            setTimeout(saveQQNumbers, config.saveQQNumbersTime);
-        })
-    }
 }
 
 
@@ -683,8 +684,72 @@ function getShuoShuoMsgList(targetQQ, currentQQID, shuoNum, startNum, timeoutNum
         })
 }
 
+/**
+ * 定时将 QQNumbers 存入数据库中, 方便下次程序运行的时候调用
+ */
+function saveQQNumbers(){
+
+    var obj = {name : "QQNumbers", QQNumbers : QQNumbers};
+
+    db.collection("QQNumbers").update({name : "QQNumbers"}, {"$set" : {"QQNumbers" : QQNumbers}}, true, function(err){
+        if(err) throw err;
+        console.log("Success!")
+
+        setTimeout(saveQQNumbers, config.saveQQNumbersTime);
+    })
+}
+
+/**
+ * 开启爬虫程序
+ * 此函数只适用于当爬虫被用户从网页上手动停止后, 想要重新开始运转时运行
+ * @@param {number} 爬虫开启的状态 1 代表 正常爬取,  2 代表 无阻塞爬取
+ * @return {number} -1 for 因为此时爬虫仍在运行, 执行函数失败       1 for 执行函数成功
+ */
+function startMain(state){
+
+    // 如果当前的 flag.mainTimer 为 -1, 说明爬虫仍在正常运转, 无需手动再开启
+    if(flags.QQstate !== -1){
+        return -1;
+    }
+
+    flags.QQstate = state;
+
+    // 开启爬虫
+    main();
+
+    return 0;
+}
 
 
+/**
+ * 终止当前进行的所有爬虫程序
+ * 如果当前有任何正在登录的程序, 则此函数无效
+ * @return {number} -1 for 因有正在登录的爬虫而无效     1 for 运行成功
+ */
+function clearMain(){
+
+    // 此函数不允许在有函数进行登录的过程中运行
+    config.QQ.forEach(function(item, index){
+        if(item.isLogin === 3) return -1;
+    })
+
+    // 将所有正在运行的爬虫终止登录, 以及将所有等待验证码的爬虫终止登录
+    config.QQ.forEach(function(item, index){
+        if(item.isLogin === 1 || item.isLogin === 8){
+            item.isLogin = 0;
+
+            // 清空 cookie 列表
+            jsonCookie[index] = {};
+        }
+    })
+
+    // 停止正在运行的爬虫程序
+    clearTimeout(flags.mainTimer);
+
+    flags.QQstate = -1;
+
+    return 0;
+}
 
 /**
  * 获取QQ空间验证手段之一的 G_TK
@@ -799,7 +864,12 @@ function log(currentQQID, msg){
         2675085659----shaashcexv
         2685867114----civscnkifq        已冻结
         2670795177----zhxhitromx        已冻结
-
+    7月22日 购买
+        2037546781----zjie0a4685b 
+        3235979057----lka3ufxxxpm8 
+        2145535489----vg4i1qcu 
+        3158576792----lnnj35novtnbl 
+        2168636681----ep9ut33n34hlb
 
 部分数据的请求地址: http://r.qzone.qq.com/cgi-bin/main_page_cgi?uin=616772663&param=3_616772663_0%7C8_8_3095623630_0_1_0_0_1%7C15%7C16&g_tk=320979203
     其中 module3 里面是 最近访客

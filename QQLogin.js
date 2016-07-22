@@ -109,6 +109,12 @@ function getVerifyMsg(currentQQID){
                 } else if (verifyArr[0] === "1") {
                     log(currentQQID, "需要验证码, 即将进行验证码验证!")
 
+                    // 7月22日 : 新增 如果当前是无阻塞的模式, 则无需输入验证码, 直接跳过!
+                    if(main.flags.QQstate === 2){
+                        config.QQ[currentQQID].isLogin = 8;
+                        return;
+                    }
+
                     // 进入获取验证码的第二阶段
                     getVerifyMoreMsg(currentQQID, verifyArr[1]);
                     return;

@@ -19,7 +19,7 @@ router.post('/', function(req, res, next) {
 
     config.QQ.push(userObj);
 
-    res.send('success')
+    res.send('新爬虫账号已添加成功!')
 })
 
 router.get('/list', function(req, res, next) {
@@ -32,6 +32,7 @@ router.get('/list', function(req, res, next) {
     };
     obj.config = config;
     obj.verifyImg = main.flags.verifyImg;
+    obj.QQstateNum = main.flags.QQstate;
 
     res.send(obj);
 })
@@ -91,6 +92,27 @@ router.post('/verify', function (req, res, next) {
     process.stdin.emit('data', verifyCode);
     main.flags.verifyImg = "";
     res.send('success')
+})
+
+router.post("/stopAll", function (req, res, next) {
+    var result = main.clearMain();
+    switch(result){
+        case -1 : return res.send("当前仍然有正在进行登录的爬虫, 请等这些爬虫登陆完成后重试");
+        case  0 : return res.send("已成功停止所有爬虫的运行");
+        default : return res.send("post('/stopAll') 未知错误");
+    }
+})
+
+router.post("/startAll", function (req, res, next) {
+
+    var state = req.body.state;
+    
+    var result = main.startMain(state);
+    switch(result){
+        case -1 : return res.send("操作失败, 目前爬虫仍然在运行之中");
+        case  0 : return res.send("已成功恢复所有爬虫的运行");
+        default : return res.send("post('/startMain') 未知错误");
+    }
 })
 
 module.exports = router;
