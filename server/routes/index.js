@@ -127,7 +127,36 @@ router.post("/setQQmax", function (req, res, next) {
     } else {
         return res.send("参数错误!");
     }
+})
+
+router.post("/setQQmax", function (req, res, next) {
+
+    var newTimeStr = req.body.QQtime;
+
+    var newTimeNum = parseInt(newTimeStr);
+
+    if(newTimeNum > 1000){
+        config.timeout = newTimeNum;
+        return res.send("同一爬虫爬取的间隔时间已被设置为 " + newTimeNum + " ms!");
+    } else {
+        return res.send("参数错误!");
+    }
+})
+
+router.post("/restartAll", function (req, res, next) {
+
+    var temp = 0;
+
+    config.QQ.forEach(function(item, index){
+        if(item.isLogin === 6 || item.isLogin === 8){
+            temp++;
+            item.isLogin = 0;
+        }
+    })
+
+    res.send("已从暂停状态恢复运行的爬虫数有 " + temp + " 个!");
 
 })
+
 
 module.exports = router;

@@ -25,7 +25,7 @@
         </thead>
         <tbody>
             <!-- <tr v-for="QQ in QQArrState" v-if="QQ.isLogin !== '7 (已被人为删除)'"> -->  <!-- 不显示已删除 -->
-            <tr v-for="QQ in QQArrState" v-bind:class="{'success' : QQ.isLogin === '1 (登录成功, 正在爬取)', 'info' : QQ.isLogin === '2 (账号已被冻结)'}">    <!-- 显示已删除 -->
+            <tr v-for="QQ in QQArrState" v-bind:class="{'success' : QQ.isLogin === '1 (登录成功, 正在爬取)', 'danger' : QQ.isLogin === '2 (账号已被冻结)'}">    <!-- 显示已删除 -->
                 <td>{{ $index }}</td>
                 <td>{{ QQ.userQQ  }}</td>
                 <td>{{ QQ.password  }}</td>
@@ -37,33 +37,29 @@
     </table>
 
     <h2>新增爬虫账号</h2>
-    <form class="form-group" id="form">
-        <input type="text" name="userQQ" class="form-control" v-model="newUserQQ" placeholder="请输入qq号">
-        <input type="text" name="password" class="form-control" v-model="newPassword"  placeholder="请输入qq密码">
-    </form>
+    <label style="float: left;margin:8px 20px 0 0;">新增单个账号</label>
+    <input type="text" name="userQQ" style="width:200px;float: left" class="form-control" v-model="newUserQQ" placeholder="请输入qq号">
+    <input type="text" name="password" style="width:200px;float: left" class="form-control" v-model="newPassword"  placeholder="请输入qq密码">
     <button class="btn btn-primary" @click="newQQuser()">提交</button>
+<!--     <br>
+<br style="clear: both">
+<label>新增多个账号</label>
+<textarea v-model="addManyQQStr"></textarea>
+<button class="btn btn-primary" @click="newManyQQuser()">提交</button> -->
     <br><br>
 
     <h2>爬虫管理</h2>
     <div class="btn btn-warning" @click=stopAll()>停止爬虫运行</div>
     <div class="btn btn-primary" @click=startAll(1)>开始正常爬取</div>
     <div class="btn btn-info"    @click=startAll(2)>开始无阻塞爬取</div>
+    <div class="btn btn-info"    @click=restartAll()>恢复所有爬虫</div>
     <br>
     <br>
     <label>设置同时进行爬取的爬虫的最大数量</label>
-    <select v-model="setMaxNum">
-        <option>请选择</option>
-        <option>1</option>
-        <option>2</option>
-        <option>3</option>
-        <option>4</option>
-        <option>5</option>
-        <option>6</option>
-        <option>7</option>
-        <option>8</option>
-        <option>9</option>
-        <option>10</option>
-    </select>
+    <input type="text" v-model="setMaxNum">
+    <div class="btn btn-success" @click=setQQmax()>设置</div><br>
+    <label>设置间隔时间(毫秒)</label>
+    <input type="text" v-model="setTimeoutNum">
     <div class="btn btn-success" @click=setQQmax()>设置</div>
     <br><br>
 
@@ -76,7 +72,8 @@
                 <td>待爬取的QQ号</td>
                 <td>留言板的最大抓取数量</td>
                 <td>说说的最大抓取数量</td>
-                <td>同时进行爬取的爬虫的最大数量</td>
+                <td>同时进行最大数量</td>
+                <td>间隔时间(毫秒)</td>
             </tr>
             <tr>
                 <td>{{ QQstate }}</td>
@@ -85,6 +82,8 @@
                 <td>{{ config.boardMax }}</td>
                 <td>{{ config.shuoMax }}</td>
                 <td>{{ config.maxQQ }}</td>
+                <td>{{ config.timeout }}</td>
+
             </tr>
         </tbody>
     </table>
@@ -135,13 +134,15 @@
                 QQArr           : [],       // 从后台获取到的爬虫情况
                 newUserQQ       : "",       // 与 新增账号 QQ号 绑定
                 newPassword     : "",       // 与 新增账号 密码 绑定
+                addManyQQStr    : "",       // 与 新增账号 多个账号绑定
                 evalCode        : "",       // 与 直接执行代码 绑定
 
                 QQstateNum      : -1,       // 与 当前爬取情况 状态 相关
                 statusQQdone    : 0,        // 与 当前爬取情况 已爬取QQ数 绑定
                 statusQQNumbers : 0,        // 与 当前爬取情况 已爬取QQ数 绑定
                 config          : {},       // 与 当前爬取情况 设置 绑定
-                setMaxNum       : "请选择",  // 与 当前爬取情况 设置最大数量 绑定
+                setMaxNum       : "",       // 与 当前爬取情况 设置最大数量 绑定
+                setTimeoutNum   : "",       // 与 当前爬取情况 设置间隔时间 绑定
 
                 getQQArrTimer   : 0,        // 全局　getQQArr　定时器变量,
                 verifyImg       : "",       // 验证码图片id
@@ -263,6 +264,13 @@
                         clearTimeout(this.getQQArrTimer);
                         this.getQQArr();
                     })
+                },
+
+                /**
+                 * TODO : 添加多个QQ账号
+                 */
+                newManyQQuser : function(){
+
                 },
 
                 /**
@@ -394,6 +402,33 @@
                     }
 
                     this.$http.post("/setQQmax", {QQmax : this.setMaxNum}).then(function(data){
+                       alert(data.data);
+                    })
+                },
+
+                /**
+                 * 恢复所有已冻结爬虫的运行
+                 * 包括 6 : 人为暂停使用  和  8 : 因验证码原因暂停使用
+                 */
+                restartAll : function(){
+                    this.$http.post("/restartAll").then(function(data){
+                       alert(data.data);
+                    })
+                },
+
+                /**
+                 * 设置爬虫的间隔时间
+                 */
+                setQQTimeout : function(){
+
+                    var temp = parseInt(this.setMaxNum);
+
+                    if(!(temp > 1000)){
+                        alert("请检查参数后再进行提交!");
+                        return;
+                    }
+
+                    this.$http.post("/setQQTimeout", {QQtime : this.setTimeoutNum}).then(function(data){
                        alert(data.data);
                     })
                 }

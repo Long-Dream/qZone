@@ -6,11 +6,9 @@ var config     = {
     // 4 代表账号或者密码不正确  5 代表操作过于频繁 等一两天再试   6 为被人为暂停使用
     // 7 表示已被删除     8 表示 因为需要验证码 而 暂停使用
     QQ                  : [
-        {userQQ      : 2037546781, password    : 'zjie0a4685b', isLogin     : 0 },
-        {userQQ      : 3235979057, password    : 'lka3ufxxxpm8', isLogin     : 0 },
-        {userQQ      : 2145535489, password    : 'vg4i1qcu', isLogin     : 0 },
-        {userQQ      : 3158576792, password    : 'lnnj35novtnbl', isLogin     : 0 },
-        {userQQ      : 2168636681, password    : 'ep9ut33n34hlb', isLogin     : 0 },
+        {userQQ      : 3229635637, password    : '2vdnun6lg6qwv', isLogin     : 0 },
+        {userQQ      : 2180948020, password    : 'ybzj6l452', isLogin     : 0 },
+        {userQQ      : 2121035823, password    : 'j7ibiqfp03i', isLogin     : 0 },
     ],
 
     boardNum            : 20,     // 留言板每次抓取的数量

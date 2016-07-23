@@ -456,7 +456,9 @@ function getMsgBoard(targetQQ, currentQQID, boardNum, startNum, timeoutNum){
                     case -4001  :
                         log(currentQQID, '获取留言板 ' +　targetQQ + " : 没有登录");
                         // 这是一个悲伤的事实... 在爬取过程中如果登录被退出, 那就是意味着账号已被冻结
-                        config.QQ[currentQQID].isLogin = 2;
+                        // 其实也并不全是这样...如果延时较长, 也有可能有退出登录的情况发生
+                        // 重登再进行尝试就可以了
+                        config.QQ[currentQQID].isLogin = 0;
                         QQEvents[targetQQ].event.emit("msgBoard", "没有登录");
                         return;
                     case  1003  :
@@ -620,7 +622,9 @@ function getShuoShuoMsgList(targetQQ, currentQQID, shuoNum, startNum, timeoutNum
                 case -3000  :
                     log(currentQQID, '获取说说 ' +　targetQQ + " : 没有登录");
                     // 这是一个悲伤的事实... 在爬取过程中如果登录被退出, 那就是意味着账号已被冻结
-                    config.QQ[currentQQID].isLogin = 2;
+                    // 其实也并不全是这样...如果延时较长, 也有可能有退出登录的情况发生
+                    // 重登再进行尝试就可以了
+                    config.QQ[currentQQID].isLogin = 0;
                     QQEvents[targetQQ].event.emit("shuoshuo", "没有登录");
                     return;
                 case -10000 :
@@ -713,7 +717,7 @@ function saveQQNumbers(){
 function startMain(state){
 
     // 如果当前的 flag.mainTimer 为 -1, 说明爬虫仍在正常运转, 无需手动再开启
-    if(flags.QQstate !== -1){
+    if(flags.QQstate === state){
         return -1;
     }
 
@@ -878,11 +882,28 @@ function log(currentQQID, msg){
         2145535489----vg4i1qcu          已冻结
         3158576792----lnnj35novtnbl     买下的时候就冻结了
         2168636681----ep9ut33n34hlb     买下的时候就冻结了
-        2966395180----ssssqqqqqq 
-        2634527959----az92rvfu 
-        2967398314----xxww777888 
-        2136533283----xxww777888 
-        2086803170----ssssqqqqqq
+        2966395180----ssssqqqqqq        已冻结
+        2634527959----az92rvfu          已冻结
+        2967398314----xxww777888        已冻结
+        2136533283----xxww777888        已冻结
+        2086803170----ssssqqqqqq        已冻结
+        2134638752----sjhhzynqv9unj     已冻结
+        3179087091----crnws0vop0nsb     已冻结
+        3117789570----20djnrrszvbl9     已冻结
+        3230157520----b8gn8alfr 
+        3026885167----5j5f8zoculy5      已冻结
+        3242561661----hr2mdjept         已冻结
+        1686522887----207lpf6q          已冻结
+        2392969792----2rl93qge42yv9     已冻结
+        3238922103----00bs4h3n 
+        1805690640----9kjqakojufr0f
+    7月23日 购买
+        3239163627----56aeov22 
+        2128462238----x7mjzsnd 
+        2018495787----ra1aizqlm46g
+        3229635637----2vdnun6lg6qwv 
+        2180948020----ybzj6l452 
+        2121035823----j7ibiqfp03i
 
 部分数据的请求地址: http://r.qzone.qq.com/cgi-bin/main_page_cgi?uin=616772663&param=3_616772663_0%7C8_8_3095623630_0_1_0_0_1%7C15%7C16&g_tk=320979203
     其中 module3 里面是 最近访客
