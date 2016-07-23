@@ -60,7 +60,7 @@
     <div class="btn btn-success" @click=setQQmax()>设置</div><br>
     <label>设置间隔时间(毫秒)</label>
     <input type="text" v-model="setTimeoutNum">
-    <div class="btn btn-success" @click=setQQmax()>设置</div>
+    <div class="btn btn-success" @click=setQQTimeout()>设置</div>
     <br><br>
 
     <h2>当前爬取情况</h2>
@@ -94,33 +94,6 @@
     <button class="btn btn-primary" @click="runCode()">提交</button>
     <br><br>
 
-    <h2>爬取的用户信息</h2>
-    <table class="table table-striped">
-        <thead>
-            <tr>
-                <th>QQ号</th>
-                <th>昵称</th>
-                <th>性别</th>
-                <th>年龄</th>
-                <th>出生年份</th>
-                <th>生日</th>
-                <th>所在地</th>
-                <th>出生地</th>
-            </tr>
-        </thead>
-        <tbody>
-            <tr v-for="userInfo in userInfos">
-                <td>{{ userInfo.uin }}</td>
-                <td>{{ userInfo.nickname }}</td>
-                <td>{{ userInfo.sex == 2 ? '女' : '男' }}</td>
-                <td>{{ userInfo.age }}</td>
-                <td>{{ userInfo.birthyear }}</td>
-                <td>{{ userInfo.birthday }}</td>
-                <td>{{ userInfo.country + ' ' + userInfo.province + ' ' + userInfo.city }}</td>
-                <td>{{ userInfo.hco + ' ' + userInfo.hp + ' ' + userInfo.hc }}</td>
-            </tr>
-        </tbody>
-    </table>
     <div v-if="verifyImg" style="position:fixed;top:50%;left:50%;transform:translateX(-50%)translateY(-50%);transition:0.3s;padding:40px;background-color:#ddd;">
         <img :src="'/img/' + verifyImg" alt="验证码" style="margin-bottom:20px;">
         <input type="text" class="form-control" autofocus placeholder="请输入验证码" style="margin-bottom:20px;" v-model="verifyCode" @keydown.enter="submitVerify()">
@@ -130,7 +103,6 @@
         var app = new Vue({
             el: '#app',
             data: {
-                userInfos       : [],       // 从后台获取到的当前已爬的个人档的数据
                 QQArr           : [],       // 从后台获取到的爬虫情况
                 newUserQQ       : "",       // 与 新增账号 QQ号 绑定
                 newPassword     : "",       // 与 新增账号 密码 绑定
@@ -280,11 +252,6 @@
 
                     this.$http.get("/list").then(function(data) {
 
-                        // 检查返回内容是否为数组
-                        if (!(data.data.userInfos instanceof Array)) return;
-
-                        this.userInfos = data.data.userInfos;
-
                         this.statusQQNumbers = data.data.status.QQNumbers;
                         this.statusQQdone = data.data.status.QQdone;
 
@@ -421,7 +388,7 @@
                  */
                 setQQTimeout : function(){
 
-                    var temp = parseInt(this.setMaxNum);
+                    var temp = parseInt(this.setTimeoutNum);
 
                     if(!(temp > 1000)){
                         alert("请检查参数后再进行提交!");

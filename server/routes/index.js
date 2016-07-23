@@ -25,7 +25,6 @@ router.post('/', function(req, res, next) {
 router.get('/list', function(req, res, next) {
     var obj = {};
 
-    obj.userInfos = main.userInfos;
     obj.status = {
         QQdone : main.QQdone.length,
         QQNumbers : main.QQNumbers.length
@@ -129,7 +128,7 @@ router.post("/setQQmax", function (req, res, next) {
     }
 })
 
-router.post("/setQQmax", function (req, res, next) {
+router.post("/setQQTimeout", function (req, res, next) {
 
     var newTimeStr = req.body.QQtime;
 

@@ -13,8 +13,6 @@ var QQEvents     = {};    // 事件列表, 每个元素都是对象, 有三个�
 
 var QQtorrent    = [470501491];    // 种子 QQ 号, 星星之火, 可以燎原
 
-var userInfos    = [];     // 爬取的用户信息
-
 var flags = {
 
     // 判断当前是否处于输入验证码的状态中  0 代表不在输入验证码  大于 0 代表正在输入验证码
@@ -78,7 +76,6 @@ module.exports = {
     json2cookies    : json2cookies,
     QQdone          : QQdone,
     QQNumbers       : QQNumbers,
-    userInfos       : userInfos,
     clearMain       : clearMain,
     startMain       : startMain
 }
@@ -372,7 +369,6 @@ function getUserInfoAll(targetQQ, currentQQID, timeoutNum){
 
                 // 将返回的个人档的对象添加到数据库中
                 db.collection("UserInfo").insert(userInfoJson.data, function(err){
-                    userInfos.unshift(userInfoJson.data);
                     if(err) throw err;
                     log(currentQQID, targetQQ + " 的个人档信息, 已加入数据库!")
                 })
@@ -716,9 +712,14 @@ function saveQQNumbers(){
  */
 function startMain(state){
 
-    // 如果当前的 flag.mainTimer 为 -1, 说明爬虫仍在正常运转, 无需手动再开启
     if(flags.QQstate === state){
         return -1;
+    }
+
+    // 如果当前的 flag.mainTimer 为 -1, 说明爬虫仍在正常运转, 改变状态即可
+    if(flags.QQstate !== -1){
+        flags.QQstate = state;
+        return 0;
     }
 
     flags.QQstate = state;

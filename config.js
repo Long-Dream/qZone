@@ -8,7 +8,7 @@ var config     = {
     QQ                  : [
         {userQQ      : 3229635637, password    : '2vdnun6lg6qwv', isLogin     : 0 },
         {userQQ      : 2180948020, password    : 'ybzj6l452', isLogin     : 0 },
-        {userQQ      : 2121035823, password    : 'j7ibiqfp03i', isLogin     : 0 },
+        {userQQ      : 3230157520, password    : 'b8gn8alfr', isLogin     : 0 },
     ],
 
     boardNum            : 20,     // 留言板每次抓取的数量
