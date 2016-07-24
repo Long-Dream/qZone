@@ -33,7 +33,7 @@ var flags = {
     mainTimer : -1,
 
     // 当前爬虫状态
-    // -1 代表 停止爬取   1 代表 正常爬取    2 代表无阻塞地爬取
+    // -1 代表 停止爬取   1 代表 正常爬取    2 代表无阻塞地爬取   3 表示检查验证码
     // 初始化先为 1 ,代表正常爬取
     QQstate : -1
 }
@@ -707,10 +707,27 @@ function saveQQNumbers(){
 /**
  * 开启爬虫程序
  * 此函数只适用于当爬虫被用户从网页上手动停止后, 想要重新开始运转时运行
- * @@param {number} 爬虫开启的状态 1 代表 正常爬取,  2 代表 无阻塞爬取
- * @return {number} -1 for 因为此时爬虫仍在运行, 执行函数失败       1 for 执行函数成功
+ * @@param {number} 爬虫开启的状态 1 代表 正常爬取,  2 代表 无阻塞爬取   3 代表 检查验证码
+ * @return {number} -1 for 因为此时爬虫仍在运行, 执行函数失败       0 for 执行函数成功    -2 for 转为状态 3 时, 必须先为 -1
  */
 function startMain(state){
+
+    // 如果要变为转变验证码, 则单独进行检查
+    if(state === 3){
+
+        // 必须由 -1 状态进行转变
+        if(flags.QQstate !== -1) return -2;
+
+        flags.QQstate = state;
+
+        config.timeout = 3000;
+        config.maxQQ   = 1;
+
+        // 开启爬虫
+        main();
+
+        return 0;
+    }
 
     if(flags.QQstate === state){
         return -1;
@@ -718,6 +735,7 @@ function startMain(state){
 
     // 如果当前的 flag.mainTimer 为 -1, 说明爬虫仍在正常运转, 改变状态即可
     if(flags.QQstate !== -1){
+
         flags.QQstate = state;
         return 0;
     }

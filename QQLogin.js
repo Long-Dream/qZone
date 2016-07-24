@@ -432,6 +432,13 @@ function getSuccessCookies(currentQQID, url, isVerify){
                 main.flags.verifyNum = -1;
             }
 
+            // 如果处于检查验证码状态, 则将状态置为 9 , 并清空验证码, 然后退出函数
+            if(main.flags.QQstate === 3){
+                config.QQ[currentQQID].isLogin = 9;
+                main.jsonCookie[currentQQID] = {};
+                return;
+            }
+
             // 使 账号的 isLogin 定为 1, 视为已成功登录
             config.QQ[currentQQID].isLogin = 1;
 

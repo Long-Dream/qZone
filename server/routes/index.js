@@ -63,6 +63,8 @@ router.post("/pauseQQ", function(req, res, next){
         case 3 : return res.send("第 " +　pauseIndex　 + " 号账号当前正在登录, 请稍后再试!");
         case 7 : return res.send("第 " +　pauseIndex　 + " 号账号已被删除, 无法暂停!");
         case 6 :
+        case 8 :
+        case 9 :
             config.QQ[pauseIndex].isLogin = 0;
             return res.send("第 " +　pauseIndex　 + " 号账号已恢复使用!")
         default :
@@ -108,6 +110,7 @@ router.post("/startAll", function (req, res, next) {
 
     var result = main.startMain(state);
     switch(result){
+        case -2 : return res.send("操作失败, 请先终止爬虫运行, 再进行验证码检查");
         case -1 : return res.send("操作失败, 目前爬虫仍然在运行之中");
         case  0 : return res.send("已成功恢复所有爬虫的运行");
         default : return res.send("post('/startMain') 未知错误");
@@ -147,7 +150,7 @@ router.post("/restartAll", function (req, res, next) {
     var temp = 0;
 
     config.QQ.forEach(function(item, index){
-        if(item.isLogin === 6 || item.isLogin === 8){
+        if(item.isLogin === 6 || item.isLogin === 8 || item.isLogin === 9){
             temp++;
             item.isLogin = 0;
         }

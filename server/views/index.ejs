@@ -52,6 +52,7 @@
     <div class="btn btn-warning" @click=stopAll()>停止爬虫运行</div>
     <div class="btn btn-primary" @click=startAll(1)>开始正常爬取</div>
     <div class="btn btn-info"    @click=startAll(2)>开始无阻塞爬取</div>
+    <div class="btn btn-primary" @click=startAll(3)>开始验证码检查</div>
     <div class="btn btn-info"    @click=restartAll()>恢复所有爬虫</div>
     <br>
     <br>
@@ -153,6 +154,8 @@
                             case 5 : arr[index].isLogin = "5 (账号操作过于频繁)"; break;
                             case 6 : arr[index].isLogin = "6 (已被人为暂停)"; break;
                             case 8 : arr[index].isLogin = "8 (因有验证码的缘故, 已暂停使用)"; break;
+                            case 9 : arr[index].isLogin = "9 (通过验证码验证, 已暂停使用)"; break;
+                            default : arr[index].isLogin = "(未知参数)"
                         }
                     })
 
@@ -192,6 +195,7 @@
                         case -1  : temp = (this.QQstateNum + " : 爬虫已终止");break;
                         case  1  : temp = (this.QQstateNum + " : 爬虫正常运行");break;
                         case  2  : temp = (this.QQstateNum + " : 爬虫无阻塞运行");break;
+                        case  3  : temp = (this.QQstateNum + " : 爬虫验证码检查");break;
                         default  : temp = (this.QQstateNum + " : 未知参数");break;
                     }
 
