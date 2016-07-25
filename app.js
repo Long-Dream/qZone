@@ -1,3 +1,21 @@
+
+// NOTICE! 当收到总调度函数的启动信号时, 爬虫启动!
+process.once("message", function(data){
+    one_thread(data.THREAD_ID, data.QQ_RANGE_MIN, data.QQ_RANGE_MAX, data.PORT);
+})
+
+/**
+ * 
+ * NOTICE :　此函数(one_thread) 是这个 app.js 里面最大的函数 包含了此文件中的的所有内容
+ * 此函数设立的目的是为了实现多线程!
+ * @param  {NUMBER} QQ_RANGE_MIN  当前线程所爬取 QQ 范围的最小值
+ * @param  {NUMBER} QQ_RANGE_MAX  当前线程所爬取 QQ 范围的最大值
+ * @param  {NUMBER} PORT          当前线程所使用的管理界面的端口号
+ * 
+ */
+function one_thread(THREAD_ID, QQ_RANGE_MIN, QQ_RANGE_MAX, PORT){
+
+
 var request      = require("superagent");
 var fs           = require("fs")
 var EventEmitter = require('events').EventEmitter;
@@ -9,9 +27,13 @@ var jsonCookie   = [];    // 以 JSON 形式保存的当前cookie值
 var QQNumbers    = [];    // 收集到的QQ号码, 待爬取
 var QQdone       = [];    // 收集到的QQ号码, 已爬取
 
+var QQTimers     = [];    // 爬虫QQ的定时器
+
 var QQEvents     = {};    // 事件列表, 每个元素都是对象, 有三个属性, obj 是一些数据, event 是事件对象, count 是计数君, 默认为 3
 
 var QQtorrent    = [470501491];    // 种子 QQ 号, 星星之火, 可以燎原
+
+var afterCollection = "_" + QQ_RANGE_MIN + "_" + QQ_RANGE_MAX;
 
 var flags = {
 
@@ -33,7 +55,7 @@ var flags = {
     mainTimer : -1,
 
     // 当前爬虫状态
-    // -1 代表 停止爬取   1 代表 正常爬取    2 代表无阻塞地爬取   3 表示检查验证码
+    // -1 代表 停止爬取   1 代表 正常爬取    2 代表无阻塞地爬取   3 表示检查验证码   4 表示只登录, 不进行爬取
     // 初始化先为 1 ,代表正常爬取
     QQstate : -1
 }
@@ -53,16 +75,6 @@ var HTTPheaders = {
 }
 
 
-// 清空img文件夹
-clearImg();
-function clearImg () {
-    var list = fs.readdirSync('./server/public/img/');
-    for (var i = 0; i < list.length; i++) {
-        var name = list[i];
-        fs.unlinkSync('./server/public/img/' + name);
-    }
-    console.log('清空img文件夹');
-};
 
 /**
  * 因为在引用 QQLogin.js 的时候就已经需要 module.exports 了, 所以将 module.exports 的定义提前到引入 QQLogin 之前
@@ -77,13 +89,15 @@ module.exports = {
     QQdone          : QQdone,
     QQNumbers       : QQNumbers,
     clearMain       : clearMain,
-    startMain       : startMain
+    startMain       : startMain,
+    QQ_RANGE_MIN    : QQ_RANGE_MIN,
+    QQ_RANGE_MAX    : QQ_RANGE_MAX
 }
 
 var QQLogin    = require('./QQLogin.js')
 var db         = require("./db/db.js");
 
-var www        = require('./server/bin/www');
+var www        = require('./server/bin/www')(PORT);
 
 // Panzer Vor !!
 main();
@@ -128,41 +142,57 @@ function main(){
         // 检查当前所有的QQ号是否已登录, 若没有登录, 就进行登录
         var QQlist = checkQQ();
 
+        // 如果状态为只登陆不爬取, 则返回
+        if(flags.QQstate === 4) {
+            flags.mainTimer = setTimeout(function(){mainStep();}, config.timeout)
+            return;
+        }
+
         // 利用已登录的 QQ 号开始爬取
-        QQlist.forEach(function(item){
-
-            // 先检查种子 QQ 号
-            if(QQtorrent.length > 0){
-                var fetchNum = QQtorrent.pop();
-
-                if(isOldFreshman(fetchNum)){
-                    QQdone.push(fetchNum);
-                    console.log("QQ 第 " + item + " 号, 开始爬取种子 QQ 号 " + fetchNum)
-                    fetchData(fetchNum, item);
-                    return;
-                }
-            }
-
-            // 再检查队列中的 QQ 号
-            if(QQNumbers.length > 0){
-
-                var fetchNum;
-
-                while(true){
-                    if (isOldFreshman(fetchNum = QQNumbers.pop())) break;
-                }
-
-                QQdone.push(fetchNum);
-                console.log("QQ 第 " + item + " 号, 开始爬取 QQ 号 " + fetchNum)
-                fetchData(fetchNum, item);
-                return;
-            }
-
-            console.log("星星之火即将熄灭")
+        QQlist.forEach(function(item, index){
+            QQTimers[item] = setTimeout(function(){
+                getDataForOneQQ(item);
+            }, config.timeout / QQlist.length * index)
         })
 
         // 进行链式反应
         flags.mainTimer = setTimeout(function(){mainStep();}, config.timeout)
+    }
+
+
+    /**
+     * 对于单QQ, 进行爬取
+     * @param  {QQ} item 已经登录好的QQ
+     */
+    function getDataForOneQQ(item) {
+        // 先检查种子 QQ 号
+        if(QQtorrent.length > 0){
+            var fetchNum = QQtorrent.pop();
+
+            if(isOldFreshman(fetchNum)){
+                QQdone.push(fetchNum);
+                console.log("QQ 第 " + item + " 号, 开始爬取种子 QQ 号 " + fetchNum)
+                fetchData(fetchNum, item);
+                return;
+            }
+        }
+
+        // 再检查队列中的 QQ 号
+        if(QQNumbers.length > 0){
+
+            var fetchNum;
+
+            while(true){
+                if (isOldFreshman(fetchNum = QQNumbers.pop())) break;
+            }
+
+            QQdone.push(fetchNum);
+            console.log("QQ 第 " + item + " 号, 开始爬取 QQ 号 " + fetchNum)
+            fetchData(fetchNum, item);
+            return;
+        }
+
+        console.log("星星之火即将熄灭")
     }
 
 
@@ -223,7 +253,7 @@ function main(){
         getUserInfoAll(targetQQ, currentQQID, config.timeoutNum);
 
         // 留言板信息
-        getMsgBoard(targetQQ, currentQQID, config.boardNum, 0, config.timeoutNum)
+        // getMsgBoard(targetQQ, currentQQID, config.boardNum, 0, config.timeoutNum)
 
         // 说说信息
         getShuoShuoMsgList(targetQQ, currentQQID, config.shuoNum, 0, config.timeoutNum)
@@ -242,11 +272,11 @@ function main(){
         QQEvents[targetQQ] = {};
 
         // 计数变量是 3 , 原因是会对三个方面进行爬取, 分别是 留言板 说说 个人档
-        QQEvents[targetQQ].count = 3;
+        QQEvents[targetQQ].count = 2;
 
         QQEvents[targetQQ].obj = {
             uin             : targetQQ,
-            msgBoardNum     : undefined,
+            // msgBoardNum     : undefined,
             shuoshuoNum     : undefined,
             userInfoState   : undefined
         }
@@ -254,19 +284,19 @@ function main(){
         // 使 EventEmitter 对象实例化
         QQEvents[targetQQ].event = new EventEmitter();
 
-        QQEvents[targetQQ].event.on("userInfo", function(data){
+        QQEvents[targetQQ].event.once("userInfo", function(data){
             QQEvents[targetQQ].count --;
             QQEvents[targetQQ].obj.userInfoState = data;
             checkEventCount(targetQQ);
         })
 
-        QQEvents[targetQQ].event.on("msgBoard", function(data){
-            QQEvents[targetQQ].count --;
-            QQEvents[targetQQ].obj.msgBoardNum = data;
-            checkEventCount(targetQQ);
-        })
+        // QQEvents[targetQQ].event.once("msgBoard", function(data){
+        //     QQEvents[targetQQ].count --;
+        //     QQEvents[targetQQ].obj.msgBoardNum = data;
+        //     checkEventCount(targetQQ);
+        // })
 
-        QQEvents[targetQQ].event.on("shuoshuo", function(data){
+        QQEvents[targetQQ].event.once("shuoshuo", function(data){
             QQEvents[targetQQ].count --;
             QQEvents[targetQQ].obj.shuoshuoNum = data;
             checkEventCount(targetQQ);
@@ -285,7 +315,7 @@ function main(){
         // 如果计数变量还有值就 return
         if(QQEvents[targetQQ].count) return;
 
-        db.collection("QQdone").insert(QQEvents[targetQQ].obj, function(err, data){
+        db.collection("QQdone" + afterCollection).insert(QQEvents[targetQQ].obj, function(err, data){
             if(err) throw err;      // QQdone 数据库保存失败
             console.log("一条 QQdone 的数据已保存成功");
 
@@ -322,22 +352,19 @@ function getUserInfoAll(targetQQ, currentQQID, timeoutNum){
         .end(function(err, data){
 
             if(err) {
-                if(err.timeout) {
-                    log(currentQQID, "个人档请求超时, 剩余超时次数 " + timeoutNum);
+                log(currentQQID, "个人档请求超时, 剩余超时次数 " + timeoutNum);
 
-                    // 如果重复请求次数已达到上限, 则不再进行请求
-                    if(!timeoutNum){
-                        QQEvents[targetQQ].event.emit("userInfo", "请求超时");
-                        return;
-                    }
-
-                    setTimeout(function(){
-                        getUserInfoAll(targetQQ, currentQQID, timeoutNum - 1);
-                    }, 0);
-
+                // 如果重复请求次数已达到上限, 则不再进行请求
+                if(!timeoutNum){
+                    QQEvents[targetQQ].event.emit("userInfo", "请求超时");
                     return;
                 }
-                throw err; // 获取个人档信息失败
+
+                setTimeout(function(){
+                    getUserInfoAll(targetQQ, currentQQID, timeoutNum - 1);
+                }, 0);
+
+                return;
             }
 
             var text = '';
@@ -417,22 +444,19 @@ function getMsgBoard(targetQQ, currentQQID, boardNum, startNum, timeoutNum){
         .end(function(err, data){
 
             if(err) {
-                if(err.timeout) {
-                    log(currentQQID, "留言板请求超时, 剩余超时次数 " + timeoutNum);
+                log(currentQQID, "留言板请求超时, 剩余超时次数 " + timeoutNum);
 
-                    // 如果重复请求次数已达到上限, 则不再进行请求
-                    if(!timeoutNum){
-                        QQEvents[targetQQ].event.emit("msgBoard", "请求超时");
-                        return;
-                    }
-
-                    setTimeout(function(){
-                        getMsgBoard(targetQQ, currentQQID, boardNum, startNum, timeoutNum - 1);
-                    }, 0);
-
+                // 如果重复请求次数已达到上限, 则不再进行请求
+                if(!timeoutNum){
+                    QQEvents[targetQQ].event.emit("msgBoard", "请求超时");
                     return;
                 }
-                throw err; // 获取留言板信息失败
+
+                setTimeout(function(){
+                    getMsgBoard(targetQQ, currentQQID, boardNum, startNum, timeoutNum - 1);
+                }, 0);
+
+                return;
             }
 
             var text = '';
@@ -587,22 +611,19 @@ function getShuoShuoMsgList(targetQQ, currentQQID, shuoNum, startNum, timeoutNum
         .end(function(err, data){
 
             if(err) {
-                if(err.timeout) {
-                    log(currentQQID, "说说请求超时, 剩余超时次数 " + timeoutNum);
+                log(currentQQID, "说说请求超时, 剩余超时次数 " + timeoutNum);
 
-                    // 如果重复请求次数已达到上限, 则不再进行请求
-                    if(!timeoutNum){
-                        QQEvents[targetQQ].event.emit("shuoshuo", "请求超时");
-                        return;
-                    }
-
-                    setTimeout(function(){
-                        getShuoShuoMsgList(targetQQ, currentQQID, shuoNum, startNum, timeoutNum - 1);
-                    }, 0);
-
+                // 如果重复请求次数已达到上限, 则不再进行请求
+                if(!timeoutNum){
+                    QQEvents[targetQQ].event.emit("shuoshuo", "请求超时");
                     return;
                 }
-                throw err; // 获取说说信息失败
+
+                setTimeout(function(){
+                    getShuoShuoMsgList(targetQQ, currentQQID, shuoNum, startNum, timeoutNum - 1);
+                }, 0);
+
+                return;
             }
 
             // console.log(data.text)
@@ -696,7 +717,7 @@ function saveQQNumbers(){
 
     var obj = {name : "QQNumbers", QQNumbers : QQNumbers};
 
-    db.collection("QQNumbers").update({name : "QQNumbers"}, {"$set" : {"QQNumbers" : QQNumbers}}, true, function(err){
+    db.collection("QQNumbers" + afterCollection).update({name : "QQNumbers"}, {"$set" : {"QQNumbers" : QQNumbers}}, true, function(err){
         if(err) throw err;
         console.log("Success!")
 
@@ -729,6 +750,7 @@ function startMain(state){
         return 0;
     }
 
+
     if(flags.QQstate === state){
         return -1;
     }
@@ -752,7 +774,7 @@ function startMain(state){
 /**
  * 终止当前进行的所有爬虫程序
  * 如果当前有任何正在登录的程序, 则此函数无效
- * @return {number} -1 for 因有正在登录的爬虫而无效     1 for 运行成功
+ * @return {number} -1 for 因有正在登录的爬虫而无效     0 for 运行成功
  */
 function clearMain(){
 
@@ -763,6 +785,11 @@ function clearMain(){
         if(item.isLogin === 3) canContinue = 0;
     })
     if(!canContinue){return -1}
+
+    // 将所有的QQ爬虫的定时器停止定时
+    QQTimers.forEach(function(item){
+        clearTimeout(item);
+    })
 
     // 将所有正在运行的爬虫终止登录, 以及将所有等待验证码的爬虫终止登录
     config.QQ.forEach(function(item, index){
@@ -828,6 +855,7 @@ function json2cookies(json){
  * @return {Boolean}    1 代表还没有被爬过   0 代表已经不是小鲜肉了
  */
 function isFreshman(QQ){
+    if(QQ < QQ_RANGE_MIN || QQ > QQ_RANGE_MAX) return 0;
     return (QQNumbers.indexOf(QQ) === -1 && QQdone.indexOf(QQ) === -1);
 }
 
@@ -838,6 +866,7 @@ function isFreshman(QQ){
  * @return {Boolean}    1 代表还没有被爬过   0 代表已经不是小鲜肉了
  */
 function isOldFreshman(QQ){
+    if(QQ < QQ_RANGE_MIN || QQ > QQ_RANGE_MAX) return 0;
     return QQdone.indexOf(QQ) === -1
 }
 
@@ -849,7 +878,7 @@ function isOldFreshman(QQ){
  */
 function log(currentQQID, msg){
     if(flags.verifyFlag) return;  // 如果正在输入验证码, 就不显示日志了
-    console.log("QQ ID " + currentQQID +" " + msg);
+    console.log("THREAD_ID " + THREAD_ID + "  QQ ID " + currentQQID +" " + msg);
 }
 
 
@@ -909,20 +938,53 @@ function log(currentQQID, msg){
         2134638752----sjhhzynqv9unj     已冻结
         3179087091----crnws0vop0nsb     已冻结
         3117789570----20djnrrszvbl9     已冻结
-        3230157520----b8gn8alfr 
+        3230157520----b8gn8alfr         已冻结
         3026885167----5j5f8zoculy5      已冻结
         3242561661----hr2mdjept         已冻结
         1686522887----207lpf6q          已冻结
         2392969792----2rl93qge42yv9     已冻结
-        3238922103----00bs4h3n 
-        1805690640----9kjqakojufr0f
+        3238922103----00bs4h3n          已冻结
+        1805690640----9kjqakojufr0f     已冻结
     7月23日 购买
         3239163627----56aeov22 
-        2128462238----x7mjzsnd 
-        2018495787----ra1aizqlm46g
-        3229635637----2vdnun6lg6qwv 
-        2180948020----ybzj6l452 
-        2121035823----j7ibiqfp03i
+        2128462238----x7mjzsnd          已冻结
+        2018495787----ra1aizqlm46g      已冻结
+        3229635637----2vdnun6lg6qwv     已冻结
+        2180948020----ybzj6l452         已冻结
+        2121035823----j7ibiqfp03i       已冻结
+    7月25日 购买
+        2161763436----3rtq0swf0i        已冻结
+        2358615262----up17jtt3a90       已冻结
+        3093733624----0junxl57puc3      已冻结
+        2802899506----yanwei954018      已冻结
+        2924513459----mqsgqrbsyu8z      已冻结
+        3198058633----zgswroqbf24130    已冻结
+        2151381037----tr67e4b2lv6b
+        3346852455----pip70rvzt         已冻结
+        2178855401----7i5p6lnokei       已冻结
+        2991728121----8g2t1cdip3k       已冻结
+
+        2188907470----thj9fprjlwyyg     买下的时候就冻结了
+        2187998183----i4yta0rane8g 
+        2175358021----meczwu640h 
+        2781594182----tly9xw0yn6h 
+        2740114823----bomiw567s2f 
+        3028736557----uc4ahen2kr4q 
+        2164594128----v24cmb7epgzz 
+        3357885497----s2125967 
+        2122691851----lvsgzo72p 
+        1764212743----stqwav31
+
+        3357538256----2qxtkg6yqlyt 
+        3173075013----uiexbeacj 
+        2130583030----qx3lon5zw 
+        2741452923----43lhk4fvt8 
+        1749527058----qso9ten3uc 
+        2187926961----kzdz4shvkyph 
+        2023895450----gusg0nqfo5ey 
+        2159521357----dqt36ugx9mzja 
+        3110075065----24z6kseppny9n 
+        3059132078----mbnwpr1yn
 
 部分数据的请求地址: http://r.qzone.qq.com/cgi-bin/main_page_cgi?uin=616772663&param=3_616772663_0%7C8_8_3095623630_0_1_0_0_1%7C15%7C16&g_tk=320979203
     其中 module3 里面是 最近访客
@@ -1040,3 +1102,4 @@ cookie 相关:
 
 
 
+};

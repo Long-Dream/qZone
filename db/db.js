@@ -6,6 +6,8 @@ var main     = require("../app.js")
 var server   = new mongodb.Server('localhost', 27017, {auto_reconnect:true});
 var db       = new mongodb.Db(config.dbName, server, {safe:true});
 
+var afterCollection = "_" + main.QQ_RANGE_MIN + "_" + main.QQ_RANGE_MAX;
+
 db.open(function(err, db){
     if(err) throw err;
     console.log('连接数据库成功！');
@@ -20,10 +22,10 @@ db.open(function(err, db){
  * 对数据库的初始化, 目前是对 QQNumbers , 如果为空就先加一个文档
  */
 function init(){
-    db.collection("QQNumbers").findOne({}, function(err, result){
+    db.collection("QQNumbers" + afterCollection).findOne({}, function(err, result){
         if(err) throw err;
         if(!result){
-            db.collection("QQNumbers").insert({name : "QQNumbers", QQNumbers : []}, function(err, result){
+            db.collection("QQNumbers" + afterCollection).insert({name : "QQNumbers", QQNumbers : []}, function(err, result){
                 if(err) throw err;
 
                 console.log("QQNumbers 内容初始化完成!")
@@ -37,7 +39,7 @@ function init(){
  * @param  {db} db 数据库
  */
 function getQQdone(db){
-    db.collection("QQdone").find({}).toArray(function(err, result){
+    db.collection("QQdone" + afterCollection).find({}).toArray(function(err, result){
         if(err) throw err;  // 获取 QQdone 数据 失败!
 
         for(var i = 0; i < result.length; i++){
@@ -55,7 +57,7 @@ function getQQdone(db){
  * @param  {db} db 数据库
  */
 function getQQNumbers(db){
-    db.collection("QQNumbers").findOne({}, function(err, result){
+    db.collection("QQNumbers" + afterCollection).findOne({}, function(err, result){
         if(err) throw err;
 
         if(result) {

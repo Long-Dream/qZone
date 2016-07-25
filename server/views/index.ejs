@@ -41,18 +41,19 @@
     <input type="text" name="userQQ" style="width:200px;float: left" class="form-control" v-model="newUserQQ" placeholder="请输入qq号">
     <input type="text" name="password" style="width:200px;float: left" class="form-control" v-model="newPassword"  placeholder="请输入qq密码">
     <button class="btn btn-primary" @click="newQQuser()">提交</button>
-<!--     <br>
-<br style="clear: both">
-<label>新增多个账号</label>
-<textarea v-model="addManyQQStr"></textarea>
-<button class="btn btn-primary" @click="newManyQQuser()">提交</button> -->
+    <br>
+    <br style="clear: both">
+    <label>新增多个账号</label>
+    <textarea v-model="addManyQQStr" style="width: 300px;height: 100px"></textarea>
+    <button class="btn btn-primary" @click="newManyQQuser()">提交</button>
     <br><br>
 
     <h2>爬虫管理</h2>
     <div class="btn btn-warning" @click=stopAll()>停止爬虫运行</div>
     <div class="btn btn-primary" @click=startAll(1)>开始正常爬取</div>
-    <div class="btn btn-info"    @click=startAll(2)>开始无阻塞爬取</div>
+    <div class="btn btn-primary" @click=startAll(2)>开始无阻塞爬取</div>
     <div class="btn btn-primary" @click=startAll(3)>开始验证码检查</div>
+    <div class="btn btn-primary" @click=startAll(4)>开始登录不爬取</div>
     <div class="btn btn-info"    @click=restartAll()>恢复所有爬虫</div>
     <br>
     <br>
@@ -196,6 +197,7 @@
                         case  1  : temp = (this.QQstateNum + " : 爬虫正常运行");break;
                         case  2  : temp = (this.QQstateNum + " : 爬虫无阻塞运行");break;
                         case  3  : temp = (this.QQstateNum + " : 爬虫验证码检查");break;
+                        case  4  : temp = (this.QQstateNum + " : 爬虫登录不爬取");break;
                         default  : temp = (this.QQstateNum + " : 未知参数");break;
                     }
 
@@ -247,6 +249,39 @@
                  */
                 newManyQQuser : function(){
 
+                    var temp = [];
+
+                    var pattern = /(\S+?)-+(\S+?)(\s*?)\n/g;
+
+                    while(true){
+                        var match = pattern.exec(this.addManyQQStr)
+                        if(match === null) break;
+
+                        var passFlag = 1;
+
+                        var that = this;
+
+                        this.QQArrState.forEach(function(item, index){
+                            if(match[1] == item.userQQ){
+                                passFlag = 0;
+                            }
+                        })
+
+                        temp.forEach(function(item, index){
+                            if(match[1] == item.userQQ){
+                                passFlag = 0;
+                            }
+                        })
+
+                        // 如果重复, 跳过即可
+                        if(!passFlag)continue;
+
+                        temp.push({userQQ : match[1], password : match[2], isLogin : 0})
+                    }
+
+                    this.$http.post("/newManyQQuser", {users : temp}).then(function(data){
+                       alert(data.data);
+                    })
                 },
 
                 /**
@@ -367,7 +402,7 @@
 
                     var temp = parseInt(this.setMaxNum);
 
-                    if(!(temp > 0 && temp < 11)){
+                    if(!(temp > 0 && temp < 21)){
                         alert("请检查参数后再进行提交!");
                         return;
                     }

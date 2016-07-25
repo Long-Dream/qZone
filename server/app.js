@@ -56,6 +56,5 @@ app.use(function(err, req, res, next) {
   });
 });
 
-console.log("服务器已运行！")
 
 module.exports = app;

@@ -7,9 +7,7 @@ var config     = {
     // 7 表示已被删除     8 表示 因为需要验证码 而 暂停使用
     // 9 表示在验证码验证中通过了验证而暂停
     QQ                  : [
-        {userQQ      : 3229635637, password    : '2vdnun6lg6qwv', isLogin     : 0 },
-        {userQQ      : 2180948020, password    : 'ybzj6l452', isLogin     : 0 },
-        {userQQ      : 3230157520, password    : 'b8gn8alfr', isLogin     : 0 },
+        {userQQ      : 3239163627, password    : '56aeov22', isLogin     : 0 },
     ],
 
     boardNum            : 20,     // 留言板每次抓取的数量

@@ -22,6 +22,17 @@ router.post('/', function(req, res, next) {
     res.send('新爬虫账号已添加成功!')
 })
 
+router.post('/newManyQQuser', function(req, res, next) {
+
+    var users = req.body.users;
+
+    users.forEach(function(item){
+        config.QQ.push(item);
+    })
+
+    res.send(users.length + '个爬虫账号已添加成功!')
+})
+
 router.get('/list', function(req, res, next) {
     var obj = {};
 
@@ -123,7 +134,7 @@ router.post("/setQQmax", function (req, res, next) {
 
     var QQmaxNum = parseInt(QQmaxStr);
 
-    if(QQmaxNum > 0 && QQmaxNum < 11){
+    if(QQmaxNum > 0 && QQmaxNum < 21){
         config.maxQQ = QQmaxNum;
         return res.send("同时进行爬取的爬虫的最大数量已成功设置为 " + QQmaxNum + " 个!");
     } else {
