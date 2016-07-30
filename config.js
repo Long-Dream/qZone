@@ -8,18 +8,17 @@ var config     = {
     // 9 表示在验证码验证中通过了验证而暂停
     QQ                  : [
         {userQQ      : 3358887966, password    : 'vp1p2axq', isLogin     : 0 },
-        {userQQ      : 3366199807, password    : 'sgyfashi', isLogin     : 0 },
     ],
 
-    boardNum            : 20,     // 留言板每次抓取的数量
-    boardMax            : 20,     // 留言板的最大抓取数量
-    shuoNum             : 40,     // 说说每次抓取的数量
-    shuoMax             : 40,    // 说说的最大抓取数量
+    boardNum            : 20,      // 留言板每次抓取的数量
+    boardMax            : 20,      // 留言板的最大抓取数量
+    shuoNum             : 40,      // 说说每次抓取的数量
+    shuoMax             : 40,      // 说说的最大抓取数量
     timeout             : 10000,   // 主函数两次爬取之间的间隔
-    getTimeout          : 7000,   // 请求的超时时间
+    getTimeout          : 7000,    // 请求的超时时间
     saveQQNumbersTime   : 30000,   // 存储 QQNumbers 的时间间隔
     timeoutNum          : 3,       // 若请求超时, 进行重试的次数
-    maxQQ               : 1,        // 同时进行爬取的爬虫的最大数量
+    maxQQ               : 1,       // 同时进行爬取的爬虫的最大数量
 
     // 数据库的名称
     dbName      : "Qzone"
