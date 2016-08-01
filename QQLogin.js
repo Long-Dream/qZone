@@ -404,7 +404,7 @@ function QQTryLogin(currentQQID, verifycode, pt_verifysession_v1){
                 } else if (verifyArr[0] === '3') {
                     log(currentQQID, "您输入的帐号或密码不正确, 请将账号删除后重新录入账号和密码");
                     if(pt_verifysession_v1){
-                        main.flags.verifyFlag -= 1;
+                        if(main.flags.verifyFlag > 0)main.flags.verifyFlag -= 1;
                         main.flags.verifyNum = -1;
                     }
                     config.QQ[currentQQID].isLogin = 4;
