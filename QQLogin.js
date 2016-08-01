@@ -20,7 +20,7 @@ function getLoginCookie(currentQQID){
         .set(main.HTTPheaders)
         .end(function(err, data){
             if(err) {
-                verifyFlag = 0;
+                main.flags.verifyFlag = 0;
                 main.jsonCookie[currentQQID] = {};
                 config.QQ[currentQQID].isLogin = 0;
                 return;
@@ -59,7 +59,7 @@ function getLoginCookie_qrsig(currentQQID){
         .set({Cookie : main.json2cookies(main.jsonCookie[currentQQID])})
         .end(function(err, data){
             if(err) {
-                verifyFlag = 0;
+                main.flags.verifyFlag = 0;
                 main.jsonCookie[currentQQID] = {};
                 config.QQ[currentQQID].isLogin = 0;
                 return;
@@ -97,7 +97,7 @@ function getVerifyMsg(currentQQID){
         })
         .end(function(err, data){
             if(err) {
-                verifyFlag = 0;
+                main.flags.verifyFlag = 0;
                 main.jsonCookie[currentQQID] = {};
                 config.QQ[currentQQID].isLogin = 0;
                 return;
@@ -170,7 +170,7 @@ function getVerifyMoreMsg(currentQQID, cap_cd){
         .end(function(err, data){
 
             if(err) {
-                verifyFlag = 0;
+                main.flags.verifyFlag = 0;
                 main.jsonCookie[currentQQID] = {};
                 config.QQ[currentQQID].isLogin = 0;
                 return;
@@ -215,7 +215,7 @@ function getVerifyImg(currentQQID, cap_cd, g_vsig){
         .end(function(err, data){
 
             if(err) {
-                verifyFlag = 0;
+                main.flags.verifyFlag = 0;
                 main.jsonCookie[currentQQID] = {};
                 config.QQ[currentQQID].isLogin = 0;
                 return;
@@ -306,7 +306,7 @@ function getVerifyResult(currentQQID, cap_cd, g_vsig, ans){
         .query('sig=' + g_vsig)
         .end(function(err, data){
             if(err) {
-                verifyFlag = 0;
+                main.flags.verifyFlag = 0;
                 main.jsonCookie[currentQQID] = {};
                 config.QQ[currentQQID].isLogin = 0;
                 return;
@@ -387,7 +387,7 @@ function QQTryLogin(currentQQID, verifycode, pt_verifysession_v1){
         .query("login_sig=" + main.jsonCookie[currentQQID].pt_login_sig)
         .end(function(err, data){
             if(err) {
-                verifyFlag = 0;
+                main.flags.verifyFlag = 0;
                 main.json2cookies(main.jsonCookie[currentQQID]) = {};
                 config.QQ[currentQQID].isLogin = 0;
                 return;
@@ -411,7 +411,7 @@ function QQTryLogin(currentQQID, verifycode, pt_verifysession_v1){
                 } else if (verifyArr[0] === '3') {
                     log(currentQQID, "您输入的帐号或密码不正确, 请将账号删除后重新录入账号和密码");
                     if(pt_verifysession_v1){
-                        main.flags.verifyFlag -= 1;
+                        if(main.flags.verifyFlag > 0)main.flags.verifyFlag -= 1;
                         main.flags.verifyNum = -1;
                     }
                     config.QQ[currentQQID].isLogin = 4;
