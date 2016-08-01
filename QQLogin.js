@@ -19,7 +19,11 @@ function getLoginCookie(currentQQID){
     request.get("http://xui.ptlogin2.qq.com/cgi-bin/xlogin?proxy_url=http%3A//qzs.qq.com/qzone/v6/portal/proxy.html&daid=5&&hide_title_bar=1&low_login=0&qlogin_auto_login=1&no_verifyimg=1&link_target=blank&appid=549000912&style=22&target=self&s_url=http%3A%2F%2Fqzs.qq.com%2Fqzone%2Fv5%2Floginsucc.html%3Fpara%3Dizone&pt_qr_app=%E6%89%8B%E6%9C%BAQQ%E7%A9%BA%E9%97%B4&pt_qr_link=http%3A//z.qzone.com/download.html&self_regurl=http%3A//qzs.qq.com/qzone/v6/reg/index.html&pt_qr_help_link=http%3A//z.qzone.com/download.html")
         .set(main.HTTPheaders)
         .end(function(err, data){
-            if(err) throw err;      // 获取登录所必须的 cookie 值 失败!
+            if(err) {
+                main.jsonCookie[currentQQID] = {};
+                config.QQ[currentQQID].isLogin = 0;
+                return;
+            }
 
             // 逐个访问 set-cookie 并进行添加
             setCookie(currentQQID, data);
@@ -53,7 +57,11 @@ function getLoginCookie_qrsig(currentQQID){
         .set(main.HTTPheaders)
         .set({Cookie : main.json2cookies(main.jsonCookie[currentQQID])})
         .end(function(err, data){
-            if(err) throw err;      // 获取 cookie : qrsig 失败
+            if(err) {
+                main.jsonCookie[currentQQID] = {};
+                config.QQ[currentQQID].isLogin = 0;
+                return;
+            }
 
             setCookie(currentQQID, data);
 
@@ -86,7 +94,11 @@ function getVerifyMsg(currentQQID){
             pt_uistyle  : 40
         })
         .end(function(err, data){
-            if(err) throw err;
+            if(err) {
+                main.jsonCookie[currentQQID] = {};
+                config.QQ[currentQQID].isLogin = 0;
+                return;
+            }
 
             // 这个请求里面也有一些比较重要的 cookie
             setCookie(currentQQID, data);
@@ -154,7 +166,11 @@ function getVerifyMoreMsg(currentQQID, cap_cd){
         .query('cap_cd=' + cap_cd)
         .end(function(err, data){
 
-            if(err) throw err;  // 获取验证码消息 第二阶段
+            if(err) {
+                main.jsonCookie[currentQQID] = {};
+                config.QQ[currentQQID].isLogin = 0;
+                return;
+            }
 
             // 匹配 g_vsig
             var match = data.text.match(/var g_vsig = ".*?"/);
@@ -193,6 +209,12 @@ function getVerifyImg(currentQQID, cap_cd, g_vsig){
         .query('cap_cd=' + cap_cd)
         .query('sig=' + g_vsig)
         .end(function(err, data){
+
+            if(err) {
+                main.jsonCookie[currentQQID] = {};
+                config.QQ[currentQQID].isLogin = 0;
+                return;
+            }
 
             var imgName = 'ID' + currentQQID + '_' + new Date().toLocaleString().replace(/:/g, "").replace(/-/g, "").replace(/ /g, "_") + '.jpg'
 
@@ -278,7 +300,11 @@ function getVerifyResult(currentQQID, cap_cd, g_vsig, ans){
         .query('cap_cd=' + cap_cd)
         .query('sig=' + g_vsig)
         .end(function(err, data){
-            if(err) throw err;      // 获取验证码结果失败
+            if(err) {
+                main.jsonCookie[currentQQID] = {};
+                config.QQ[currentQQID].isLogin = 0;
+                return;
+            }
 
             var resultJson = JSON.parse(data.text);
 
@@ -354,7 +380,11 @@ function QQTryLogin(currentQQID, verifycode, pt_verifysession_v1){
         .query("p=" + getP(currentQQID, verifycode))
         .query("login_sig=" + main.jsonCookie[currentQQID].pt_login_sig)
         .end(function(err, data){
-            if(err) throw err;      // 登录失败
+            if(err) {
+                main.json2cookies(main.jsonCookie[currentQQID]) = {};
+                config.QQ[currentQQID].isLogin = 0;
+                return;
+            }
 
             var text = '';
 

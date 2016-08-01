@@ -8,8 +8,8 @@ var thread_1 = cp.fork(__dirname + '/app.js');
 var thread_2 = cp.fork(__dirname + '/app.js');
 
 // 发送启动信号
-thread_1.send({THREAD_ID: 1, QQ_RANGE_MIN : 000000000, QQ_RANGE_MAX : 2000000000, PORT : 3001});
-// thread_2.send({THREAD_ID: 2, QQ_RANGE_MIN : 000000000, QQ_RANGE_MAX : 300000000, PORT : 3002});
+thread_1.send({THREAD_ID: 1, QQ_RANGE_MIN : 0000000000, QQ_RANGE_MAX : 1000000000, PORT : 3001});
+thread_2.send({THREAD_ID: 2, QQ_RANGE_MIN : 1000000000, QQ_RANGE_MAX : 2000000000, PORT : 3002});
 
 
 
