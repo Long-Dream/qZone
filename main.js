@@ -19,7 +19,7 @@ thread_2.send({THREAD_ID: 2, QQ_RANGE_MIN : 500000000,  QQ_RANGE_MAX : 100000000
 thread_3.send({THREAD_ID: 3, QQ_RANGE_MIN : 1000000000, QQ_RANGE_MAX : 1500000000, PORT : 3003});
 thread_4.send({THREAD_ID: 4, QQ_RANGE_MIN : 1500000000, QQ_RANGE_MAX : 2000000000, PORT : 3004});
 
-setInterval(editMailData, 30000);
+setInterval(editMailData, 10000);
 
 
 /**
@@ -42,7 +42,7 @@ function editMailData(){
     var text = "";
 
     // 接受返回数据的次数，当归零的时候，就进行邮件的发送
-    var temp = ports.length * 2;
+    var temp = ports.length;
 
     var stateObj    = {};
 
@@ -51,14 +51,6 @@ function editMailData(){
             .end(function(err, data){
                 if(err) throw err;      // 邮件获取信息发生了错误
                 addMailData(item, "list", data.text);
-            })
-    })
-
-    ports.forEach(function(item){
-        request.get("http://localhost:" + item + "/QQArr")
-            .end(function(err, data){
-                if(err) throw err;      // 邮件获取信息发生了错误
-                addMailData(item, "QQArr", data.text);
             })
     })
 
@@ -72,16 +64,14 @@ function editMailData(){
         text += ("来自端口号 " + item + " 的类型为 " + type + " 的信息：<br>" + data + "<br><br>");
 
         var json = JSON.parse(data);
+        var num  = 0;
 
-        if(json instanceof Array){
-            var num = 0;
-            json.forEach(function(item){
-                if(item.isLogin === 1) num++;
-            })
-            stateObj[item + "_alive"] = num;
-        } else {
-            stateObj[item + "_QQdone"] = json.status.QQdone;
-        }
+        stateObj[item + "_QQdone"] = json.status.QQdone;
+
+        json.config.QQ.forEach(function(QQitem){
+            if(QQitem.isLogin === 1) num++;
+        })
+        stateObj[item + "_alive"] = num;
 
         temp--;
 

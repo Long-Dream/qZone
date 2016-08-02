@@ -125,7 +125,6 @@
             },
             created: function() {
                 this.getUserInfo();
-                this.getQQArr();
             },
             computed: {
 
@@ -298,26 +297,12 @@
                         this.verifyImg = data.data.verifyImg;
 
                         this.QQstateNum = data.data.QQstateNum;
+
+                        this.QQArr = data.data.config.QQ;
                     })
 
                      setTimeout(this.getUserInfo, 3000)
 
-                },
-
-                /**
-                 * 定时获取当前爬虫已登录的QQ号, 并保存到 QQArr 里面
-                 */
-                getQQArr : function(){
-
-                    this.$http.get("/QQArr").then(function(data){
-
-                        // 检查返回内容是否为数组
-                        if (!(data.data instanceof Array)) return;
-
-                        this.QQArr = data.data;
-                    })
-
-                    this.getQQArrTimer = setTimeout(this.getQQArr, 3000)
                 },
 
                 /**

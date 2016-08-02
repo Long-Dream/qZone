@@ -47,10 +47,6 @@ router.get('/list', function(req, res, next) {
     res.send(obj);
 })
 
-router.get("/QQArr", function(req, res, next){
-    res.send(config.QQ);
-})
-
 router.post("/deleteQQ", function(req, res, next){
 
     var deleteIndex = req.body.index;
