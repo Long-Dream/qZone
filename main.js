@@ -3,17 +3,21 @@ var fs          = require("fs")
 var nodemailer  = require('nodemailer');
 var request     = require("superagent");
 
-var ports = [3001, 3002];   // 所有爬虫的端口号集合
+var ports = [3001, 3002, 3003, 3004];   // 所有爬虫的端口号集合
 
 // 清空img文件夹
 clearImg();
 
 var thread_1 = cp.fork(__dirname + '/app.js');
 var thread_2 = cp.fork(__dirname + '/app.js');
+var thread_3 = cp.fork(__dirname + '/app.js');
+var thread_4 = cp.fork(__dirname + '/app.js');
 
 // 发送启动信号
-thread_1.send({THREAD_ID: 1, QQ_RANGE_MIN : 0000000000, QQ_RANGE_MAX : 1000000000, PORT : 3001});
-thread_2.send({THREAD_ID: 2, QQ_RANGE_MIN : 1000000000, QQ_RANGE_MAX : 2000000000, PORT : 3002});
+thread_1.send({THREAD_ID: 1, QQ_RANGE_MIN : 000000000 , QQ_RANGE_MAX : 500000000,  PORT : 3001});
+thread_2.send({THREAD_ID: 2, QQ_RANGE_MIN : 500000000,  QQ_RANGE_MAX : 1000000000, PORT : 3002});
+thread_3.send({THREAD_ID: 3, QQ_RANGE_MIN : 1000000000, QQ_RANGE_MAX : 1500000000, PORT : 3003});
+thread_4.send({THREAD_ID: 4, QQ_RANGE_MIN : 1500000000, QQ_RANGE_MAX : 2000000000, PORT : 3004});
 
 setInterval(editMailData, 30000);
 
@@ -67,7 +71,7 @@ function editMailData(){
 
         text += ("来自端口号 " + item + " 的类型为 " + type + " 的信息：<br>" + data + "<br><br>");
 
-        var json        = JSON.parse(data);
+        var json = JSON.parse(data);
 
         if(json instanceof Array){
             var num = 0;
@@ -106,7 +110,7 @@ function sendMail(data){
     });
 
     var mailOptions = {
-        from: "Fred Foo <3154439834@qq.com>", // 发件地址
+        from: "MyRobot <3154439834@qq.com>", // 发件地址
         to: "634262407@qq.com", // 收件列表
         subject: new Date().toLocaleString() + "_爬虫信息", // 标题
         html: data // html 内容
