@@ -14,11 +14,12 @@ var config     = {
     boardMax            : 20,      // 留言板的最大抓取数量
     shuoNum             : 40,      // 说说每次抓取的数量
     shuoMax             : 40,      // 说说的最大抓取数量
-    timeout             : 10000,   // 主函数两次爬取之间的间隔
+    timeout             : 3000,    // 主函数两次爬取之间的间隔
     getTimeout          : 7000,    // 请求的超时时间
     saveQQNumbersTime   : 30000,   // 存储 QQNumbers 的时间间隔
     timeoutNum          : 3,       // 若请求超时, 进行重试的次数
-    maxQQ               : 1,       // 同时进行爬取的爬虫的最大数量
+    maxQQ               : 20,      // 同时进行爬取的爬虫的最大数量
+    maxQQLogin          : 2,       // 同时进行登录的爬虫的最大数量
 
     // 数据库的名称
     dbName      : "Qzone"

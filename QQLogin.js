@@ -20,7 +20,6 @@ function getLoginCookie(currentQQID){
         .set(main.HTTPheaders)
         .end(function(err, data){
             if(err) {
-                main.flags.verifyFlag -= 1;
                 main.jsonCookie[currentQQID] = {};
                 config.QQ[currentQQID].isLogin = 0;
                 return;
@@ -59,7 +58,6 @@ function getLoginCookie_qrsig(currentQQID){
         .set({Cookie : main.json2cookies(main.jsonCookie[currentQQID])})
         .end(function(err, data){
             if(err) {
-                main.flags.verifyFlag -= 1;
                 main.jsonCookie[currentQQID] = {};
                 config.QQ[currentQQID].isLogin = 0;
                 return;
@@ -97,7 +95,6 @@ function getVerifyMsg(currentQQID){
         })
         .end(function(err, data){
             if(err) {
-                main.flags.verifyFlag -= 1;
                 main.jsonCookie[currentQQID] = {};
                 config.QQ[currentQQID].isLogin = 0;
                 return;
@@ -170,7 +167,6 @@ function getVerifyMoreMsg(currentQQID, cap_cd){
         .end(function(err, data){
 
             if(err) {
-                main.flags.verifyFlag -= 1;
                 main.jsonCookie[currentQQID] = {};
                 config.QQ[currentQQID].isLogin = 0;
                 return;
@@ -215,7 +211,6 @@ function getVerifyImg(currentQQID, cap_cd, g_vsig){
         .end(function(err, data){
 
             if(err) {
-                main.flags.verifyFlag -= 1;
                 main.jsonCookie[currentQQID] = {};
                 config.QQ[currentQQID].isLogin = 0;
                 return;

@@ -98,7 +98,7 @@
 
     <div v-if="verifyImg" style="position:fixed;top:50%;left:50%;transform:translateX(-50%)translateY(-50%);transition:0.3s;padding:40px;background-color:#ddd;">
         <img :src="'/img/' + verifyImg" alt="验证码" style="margin-bottom:20px;">
-        <input type="text" class="form-control" autofocus placeholder="请输入验证码" style="margin-bottom:20px;" v-model="verifyCode" @keydown.enter="submitVerify()">
+        <input type="text" id="verifyInput" class="form-control" autofocus placeholder="请输入验证码" style="margin-bottom:20px;" v-model="verifyCode" @keydown.enter="submitVerify()">
         <button class="btn btn-primary" @click="submitVerify()">确定</button>
     </div>
     <script>
@@ -423,6 +423,13 @@
                        alert(data.data);
                     })
                 }
+            }
+        })
+
+        // 当将要输入验证码时， 使验证码输入框获取焦点
+        app.$watch("verifyImg", function(val){
+            if(val !== ""){
+                document.getElementById('verifyInput').focus();
             }
         })
     </script>
