@@ -2,6 +2,7 @@ var express = require('express');
 var router = express.Router();
 var config = require('../../config.js');
 var main = require('../../app.js');
+
 /* GET home page. */
 router.get('/', function(req, res, next) {
     res.render('index', {
@@ -41,7 +42,16 @@ router.get('/list', function(req, res, next) {
         QQNumbers : main.QQNumbers.length
     };
     obj.config = config;
-    obj.flags = main.flags;
+    obj.flags = {
+        verifyFlag  : main.flags.verifyFlag,
+        verifyNum   : main.flags.verifyNum,
+        readyFlag   : main.flags.readyFlag,
+        verifyImg   : main.flags.verifyImg,
+        QQstate     : main.flags.QQstate,
+        userInfoNum : main.flags.userInfoNum,
+        friendsNum  : main.flags.friendsNum,
+        interetsNum : main.flags.interetsNum,
+    }
 
     res.send(obj);
 })
