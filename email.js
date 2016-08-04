@@ -24,6 +24,10 @@ function editMailData(ports){
     var stateObj    = {};
 
     ports.forEach(function(item){
+
+        // 事先让 stateObj 的每一个元素都是一个对象
+        stateObj[item] = {};
+
         request.get("http://localhost:" + item + "/list")
             .end(function(err, data){
                 if(err) throw err;      // 邮件获取信息发生了错误
@@ -38,25 +42,60 @@ function editMailData(ports){
      */
     function addMailData(item, type, data){
 
-        text += ("来自端口号 " + item + " 的类型为 " + type + " 的信息：<br>" + data + "<br><br>");
+        text += ("来自端口号 " + item + " 的类型为 " + type + " 的信息：<br>" + listData2Table(data) + "<br><br>");
 
         var json = JSON.parse(data);
         var num  = 0;
 
-        stateObj[item + "_QQdone"] = json.status.QQdone;
 
         json.config.QQ.forEach(function(QQitem){
             if(QQitem.isLogin === 1) num++;
         })
-        stateObj[item + "_alive"] = num;
+        stateObj[item].alive = num;
+        stateObj[item].QQdone = json.status.QQdone;
 
         temp--;
 
         if(!temp){
-            text = JSON.stringify(stateObj) + "<br><br><br>" + text;
+            text = stateObj2Table(stateObj) + "<br><br><br>" + text;
             sendMail(text);
         }
     }
+}
+
+/**
+ * 将 stateObj 这个对象转为表格的 HTML 字符串
+ * @param  {object} stateObj 存放有当前爬虫信息的对象
+ */
+function stateObj2Table(stateObj){
+    
+    var tableText = "<table><tbody><tr><td>Port</td><td>QQdown</td><td>alive</td></tr>";
+
+    for(var i in stateObj){
+        tableText += ("<tr><td>" + i + "</td><td>" + stateObj[i].QQdone + "</td><td>" + stateObj[i].alive + "</td></tr>")
+    }
+
+    tableText += "</tbody></table>";
+
+    return tableText;
+}
+
+/**
+ * 将从 list 的 GET 请求返回到的数据转变为表格
+ * @param  {string} list 返回的数据，json的字符串
+ */
+function listData2Table(list){
+
+    var tableText = "<table><tbody><tr><td>ID</td><td>userQQ</td><td>password</td><td>isLogin</td></tr>";
+    var json      = JSON.parse(list);
+
+    json.config.QQ.forEach(function(QQitem, index){
+        tableText += ("<tr><td>" + index + "</td><td>" + QQitem.userQQ + "</td><td>" + QQitem.password + "</td><td>" + QQitem.isLogin + "</td></tr>")
+    })
+
+    tableText += "</tbody></table>";
+
+    return tableText;
 }
 
 /**
@@ -78,7 +117,7 @@ function sendMail(data){
 
     var mailOptions = {
         from: "MyRobot <3154439834@qq.com>", // 发件地址
-        to: "634262407@qq.com", // 收件列表
+        to: "634262407@qq.com", // 收件列表，如果要发送给多人逗号分隔即可
         subject: new Date().toLocaleString() + "_爬虫信息", // 标题
         html: data // html 内容
     }
@@ -92,3 +131,4 @@ function sendMail(data){
         console.log("Message sent: " + response.message);
     });
 }
+

@@ -55,13 +55,14 @@
     <div class="btn btn-primary" @click=startAll(3)>开始验证码检查</div>
     <div class="btn btn-primary" @click=startAll(4)>开始登录不爬取</div>
     <div class="btn btn-info"    @click=restartAll()>恢复所有爬虫</div>
+    <div class="btn btn-info"    @click=restartAll2()>恢复操作过于频繁的爬虫</div>
     <br>
     <br>
     <label>设置同时进行爬取的爬虫的最大数量</label>
-    <input type="text" v-model="setMaxNum">
+    <input type="text" v-model="setMaxNum" @keydown.enter="setQQmax()">
     <div class="btn btn-success" @click=setQQmax()>设置</div><br>
     <label>设置间隔时间(毫秒)</label>
-    <input type="text" v-model="setTimeoutNum">
+    <input type="text" v-model="setTimeoutNum" @keydown.enter="setQQTimeout()">
     <div class="btn btn-success" @click=setQQTimeout()>设置</div>
     <br><br>
 
@@ -72,8 +73,9 @@
                 <td>当前爬虫状态</td>
                 <td>已爬取的QQ号</td>
                 <td>待爬取的QQ号</td>
-                <td>留言板的最大抓取数量</td>
-                <td>说说的最大抓取数量</td>
+                <td>已爬取个人信息数量</td>
+                <td>已爬取好友关系数量</td>
+                <td>已爬取兴趣列表数量</td>
                 <td>同时进行最大数量</td>
                 <td>间隔时间(毫秒)</td>
             </tr>
@@ -81,8 +83,9 @@
                 <td>{{ QQstate }}</td>
                 <td>{{ statusQQdone }}</td>
                 <td>{{ statusQQNumbers }}</td>
-                <td>{{ config.boardMax }}</td>
-                <td>{{ config.shuoMax }}</td>
+                <td>{{ userInfoNum }}</td>
+                <td>{{ friendsNum }}</td>
+                <td>{{ interetsNum }}</td>
                 <td>{{ config.maxQQ }}</td>
                 <td>{{ config.timeout }}</td>
 
@@ -113,10 +116,13 @@
 
                 QQstateNum      : -1,       // 与 当前爬取情况 状态 相关
                 statusQQdone    : 0,        // 与 当前爬取情况 已爬取QQ数 绑定
-                statusQQNumbers : 0,        // 与 当前爬取情况 已爬取QQ数 绑定
+                statusQQNumbers : 0,        // 与 当前爬取情况 将要爬取QQ数 绑定
                 config          : {},       // 与 当前爬取情况 设置 绑定
                 setMaxNum       : "",       // 与 当前爬取情况 设置最大数量 绑定
                 setTimeoutNum   : "",       // 与 当前爬取情况 设置间隔时间 绑定
+                userInfoNum     : 0,        // 与 当前爬取情况 已爬取个人信息 绑定
+                friendsNum      : 0,        // 与 当前爬取情况 已爬取好友关系 绑定
+                interetsNum     : 0,        // 与 当前爬取情况 已爬取兴趣列表 绑定
 
                 getQQArrTimer   : 0,        // 全局　getQQArr　定时器变量,
                 verifyImg       : "",       // 验证码图片id
@@ -290,15 +296,17 @@
 
                     this.$http.get("/list").then(function(data) {
 
-                        this.statusQQNumbers = data.data.status.QQNumbers;
-                        this.statusQQdone = data.data.status.QQdone;
+                        this.statusQQNumbers    = data.data.status.QQNumbers;
+                        this.statusQQdone       = data.data.status.QQdone;
 
-                        this.config = data.data.config;
-                        this.verifyImg = data.data.verifyImg;
+                        this.config             = data.data.config;
+                        this.verifyImg          = data.data.flags.verifyImg;
+                        this.QQstateNum         = data.data.flags.QQstate;
+                        this.userInfoNum        = data.data.flags.userInfoNum;
+                        this.friendsNum         = data.data.flags.friendsNum;
+                        this.interetsNum        = data.data.flags.interetsNum;
 
-                        this.QQstateNum = data.data.QQstateNum;
-
-                        this.QQArr = data.data.config.QQ;
+                        this.QQArr              = data.data.config.QQ;
                     })
 
                      setTimeout(this.getUserInfo, 3000)
@@ -398,11 +406,21 @@
                 },
 
                 /**
-                 * 恢复所有已冻结爬虫的运行
+                 * 恢复所有已暂停爬虫的运行
                  * 包括 6 : 人为暂停使用  和  8 : 因验证码原因暂停使用
                  */
                 restartAll : function(){
                     this.$http.post("/restartAll").then(function(data){
+                       alert(data.data);
+                    })
+                },
+
+                /**
+                 * 恢复所有因操作过于频繁而停止运行的爬虫的运行
+                 * 包括 5 代表操作过于频繁
+                 */
+                restartAll2 : function(){
+                    this.$http.post("/restartAll2").then(function(data){
                        alert(data.data);
                     })
                 },

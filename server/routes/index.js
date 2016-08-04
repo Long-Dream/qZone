@@ -41,8 +41,7 @@ router.get('/list', function(req, res, next) {
         QQNumbers : main.QQNumbers.length
     };
     obj.config = config;
-    obj.verifyImg = main.flags.verifyImg;
-    obj.QQstateNum = main.flags.QQstate;
+    obj.flags = main.flags;
 
     res.send(obj);
 })
@@ -166,6 +165,22 @@ router.post("/restartAll", function (req, res, next) {
     res.send("已从暂停状态恢复运行的爬虫数有 " + temp + " 个!");
 
 })
+
+router.post("/restartAll2", function (req, res, next) {
+
+    var temp = 0;
+
+    config.QQ.forEach(function(item, index){
+        if(item.isLogin === 5){
+            temp++;
+            item.isLogin = 0;
+        }
+    })
+
+    res.send("从操作过于频繁中恢复运行的爬虫数有 " + temp + " 个!");
+
+})
+
 
 
 module.exports = router;

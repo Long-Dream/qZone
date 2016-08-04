@@ -9,7 +9,7 @@ clearImg();
 
 var thread_Mail = cp.fork(__dirname + '/email.js');
 
-thread_Mail.send({ports : ports, timeout : 300000})
+thread_Mail.send({ports : ports, timeout : 900000})
 
 var thread_1    = cp.fork(__dirname + '/app.js');
 var thread_2    = cp.fork(__dirname + '/app.js');

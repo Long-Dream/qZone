@@ -60,7 +60,16 @@ var flags = {
     // 当前爬虫状态
     // -1 代表 停止爬取   1 代表 正常爬取    2 代表无阻塞地爬取   3 表示检查验证码   4 表示只登录, 不进行爬取
     // 初始化先为 1 ,代表正常爬取
-    QQstate : -1
+    QQstate : -1,
+
+    // 本次爬取获得的 userInfo 的个数
+    userInfoNum : 0,
+
+    // 本次爬取获得的 friends 的个数
+    friendsNum : 0,
+
+    // 本次爬取获得的 interets 的个数
+    interetsNum : 0
 }
 
 // 通用的HTTP请求头(不含cookie)
@@ -413,6 +422,8 @@ function getUserInfoAll(targetQQ, currentQQID, timeoutNum){
 
                 QQEvents[targetQQ].event.emit("userInfo", "Success!");
 
+
+
                 var obj = {
                     id : targetQQ,
                     profile : JSON.stringify(userInfoJson.data),
@@ -422,6 +433,9 @@ function getUserInfoAll(targetQQ, currentQQID, timeoutNum){
                 // 将返回的个人档的对象添加到数据库中
                 db.collection("UserInfo").insert(obj, function(err){
                     if(err) throw err;
+
+                    // 计数
+                    flags.userInfoNum ++;
                     log(currentQQID, targetQQ + " 的个人档信息, 已加入数据库!")
                 })
             })
@@ -737,6 +751,9 @@ function getShuoShuoMsgList(targetQQ, currentQQID, shuoNum, startNum, timeoutNum
             if(friendArr.length > 0){
                 db.collection("qq_friends").insert(friendArr, function(err) {
                     if(err) return console.log("存储数据库失败!");
+
+                    // 计数
+                    flags.friendsNum += friendArr.length;
                     log(currentQQID, friendArr.length + " 条好友关系已存入数据库")
                 })
             }
@@ -840,6 +857,9 @@ function getInterests(targetQQ, currentQQID, timeoutNum) {
                 // 将返回的兴趣列表的对象添加到数据库中
                 db.collection("Interests").insert(obj, function(err){
                     if(err) throw err;
+
+                    // 计数
+                    flags.interetsNum ++;
                     log(currentQQID, targetQQ + " 的兴趣列表信息, 已加入数据库!")
                 })
             })
@@ -1509,7 +1529,15 @@ function log(currentQQID, msg){
                 3512406698----xjtu1234----您父亲的姓名是？----qqq----您母亲的姓名是？----aaa----您配偶的姓名是？----zzz 
                 2173176636----xjtu1234----您父亲的姓名是？----qqq----您母亲的姓名是？----aaa----您配偶的姓名是？----zzz 
                 2121579060----xjtu1234----您父亲的姓名是？----qqq----您母亲的姓名是？----aaa----您配偶的姓名是？----zzz 
-                3511597184----tda84403----您父亲的姓名是？----qqq----您母亲的姓名是？----aaa----您配偶的姓名是？----zzz 
+                3511597184----xjtu1234----您父亲的姓名是？----qqq----您母亲的姓名是？----aaa----您配偶的姓名是？----zzz 
+                3512763101----xjtu1234----您父亲的姓名是？----qqq----您母亲的姓名是？----aaa----您配偶的姓名是？----zzz 
+
+                2177836193----xjtu1234----您父亲的姓名是？----qqq----您母亲的姓名是？----aaa----您配偶的姓名是？----zzz
+                3524309704----xjtu1234----您父亲的姓名是？----qqq----您母亲的姓名是？----aaa----您配偶的姓名是？----zzz
+                3512367301----xjtu1234----您父亲的姓名是？----qqq----您母亲的姓名是？----aaa----您配偶的姓名是？----zzz
+                3511277658----xjtu1234----您父亲的姓名是？----qqq----您母亲的姓名是？----aaa----您配偶的姓名是？----zzz
+                3523567811----xjtu1234----您父亲的姓名是？----qqq----您母亲的姓名是？----aaa----您配偶的姓名是？----zzz
+                3523596136----xjtu1234----您父亲的姓名是？----qqq----您母亲的姓名是？----aaa----您配偶的姓名是？----zzz
 
             3分钱：
                 您的号码: 
