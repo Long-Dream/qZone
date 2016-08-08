@@ -139,7 +139,7 @@ router.post("/setQQmax", function (req, res, next) {
 
     var QQmaxNum = parseInt(QQmaxStr);
 
-    if(QQmaxNum > 0 && QQmaxNum < 21){
+    if(QQmaxNum > 0 && QQmaxNum < 51){
         config.maxQQ = QQmaxNum;
         return res.send("同时进行爬取的爬虫的最大数量已成功设置为 " + QQmaxNum + " 个!");
     } else {
