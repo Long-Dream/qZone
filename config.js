@@ -20,6 +20,7 @@ var config     = {
     timeoutNum          : 3,       // 若请求超时, 进行重试的次数
     maxQQ               : 20,      // 同时进行爬取的爬虫的最大数量
     maxQQLogin          : 2,       // 同时进行登录的爬虫的最大数量
+    restartTimeout      : 600000,  // 操作过于频繁的爬虫账号从进入休眠到唤醒所间隔的时间长度
 
     // 数据库的名称
     dbName      : "Qzone"

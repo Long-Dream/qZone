@@ -524,27 +524,33 @@ function getMsgBoard(targetQQ, currentQQID, boardNum, startNum, timeoutNum){
                         log(currentQQID, '获取留言板 ' +　targetQQ + " : 操作过于频繁");
                         QQEvents[targetQQ].event.emit("msgBoard", "操作过于频繁");
                         config.QQ[currentQQID].isLogin = 5;
-                        return
+
+                        // 一段时间后唤醒爬虫账号
+                        setTimeout(function(){
+                            restartAfterAWhile(currentQQID)
+                        }, config.restartTimeout);
+
+                        return;
                     case -5007  :
                         log(currentQQID, '获取留言板 ' +　targetQQ + " : 系统繁忙1");
                         QQEvents[targetQQ].event.emit("msgBoard", "系统繁忙1");
-                        return
+                        return;
                     case -5008  :
                         log(currentQQID, '获取留言板 ' +　targetQQ + " : 系统繁忙2");
                         QQEvents[targetQQ].event.emit("msgBoard", "系统繁忙2");
-                        return
+                        return;
                     case -30002 :
                         log(currentQQID, '获取留言板 ' +　targetQQ + " : 系统繁忙3");
                         QQEvents[targetQQ].event.emit("msgBoard", "系统繁忙3");
-                        return
+                        return;
                     case -4013  :
                         log(currentQQID, '获取留言板 ' +　targetQQ + " : 空间未开通");
                         QQEvents[targetQQ].event.emit("msgBoard", "空间未开通");
-                        return
+                        return;
                     case -4014  :
                         log(currentQQID, '获取留言板 ' +　targetQQ + " : 空间被封闭");
                         QQEvents[targetQQ].event.emit("msgBoard", "空间被封闭");
-                        return
+                        return;
                 }
 
                 // 返回消息代码 二次确认
@@ -686,6 +692,12 @@ function getShuoShuoMsgList(targetQQ, currentQQID, shuoNum, startNum, timeoutNum
                 case -10000 :
                     log(currentQQID, '获取说说 ' +　targetQQ + " : 操作过于频繁");
                     config.QQ[currentQQID].isLogin = 5;
+                    
+                    // 一段时间后唤醒爬虫账号
+                    setTimeout(function(){
+                        restartAfterAWhile(currentQQID)
+                    }, config.restartTimeout);
+                    
                     QQEvents[targetQQ].event.emit("shuoshuo", "操作过于频繁");
                     return;
             }
@@ -1044,6 +1056,16 @@ function countLogining(){
  */
 function getQueryTime(){
     return new Date().toLocaleString()
+}
+
+/**
+ * 将操作过于频繁的爬虫账号唤醒
+ * @param  {number} currentQQID 将要被唤醒的爬虫账号
+ */
+function restartAfterAWhile(currentQQID) {
+    if(config.QQ[currentQQID].isLogin === 5){
+        config.QQ[currentQQID].isLogin = 0;
+    }
 }
 
 /**
