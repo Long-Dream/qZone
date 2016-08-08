@@ -22,6 +22,9 @@ var config     = {
     maxQQLogin          : 2,       // 同时进行登录的爬虫的最大数量
     restartTimeout      : 600000,  // 操作过于频繁的爬虫账号从进入休眠到唤醒所间隔的时间长度
 
+    // 收信邮箱
+    email               : "634262407@qq.com",
+
     // 数据库的名称
     dbName      : "Qzone"
 }

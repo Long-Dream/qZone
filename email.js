@@ -9,6 +9,7 @@ process.once("message", function(data){
 
 var nodemailer  = require('nodemailer');
 var request     = require("superagent");
+var config      = require("config");
 
 /**
  * 编辑要发送的邮件的内容
@@ -117,7 +118,7 @@ function sendMail(data){
 
     var mailOptions = {
         from: "MyRobot <3154439834@qq.com>", // 发件地址
-        to: "634262407@qq.com", // 收件列表，如果要发送给多人逗号分隔即可
+        to: config.email, // 收件列表，如果要发送给多人逗号分隔即可
         subject: new Date().toLocaleString() + "_爬虫信息", // 标题
         html: data // html 内容
     }
