@@ -1,7 +1,7 @@
 {
   "dependencies": {
     "express": "^4.14.0",
-    "mongodb": "^2.2.2",
+    "mongodb": "^3.6.1",
     "superagent": "^2.0.0",
     "body-parser": "~1.15.1",
     "cookie-parser": "~1.4.3",
